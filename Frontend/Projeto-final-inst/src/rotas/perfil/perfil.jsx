@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import Header from "../../componentes_globais/Header"
 import Cabecalho from "./Cabecalho"
 import Informacaes from "./Informacaes"
-import Status2 from "../../componentes_globais/Status2"
 import Galeria from "./Galeria"
 
 const URL_API = 'http://localhost:3000'
@@ -33,10 +32,14 @@ function Perfil() {
   return (
     <>
       <Header />
-      <Cabecalho foto={usuario ? usuario.foto : 'https://placehold.co/300x300'} />
-      {usuario && <Informacaes usuario={usuario} totalPosts={posts.length} />}
-      <Status2 />
-      <Galeria posts={posts} />
+      <main className="perfil">
+        <Cabecalho
+          foto={usuario ? usuario.foto : 'https://placehold.co/300x300'}
+          capa={usuario ? usuario.capa : ''}
+        />
+        {usuario && <Informacaes usuario={usuario} totalPosts={posts.length} />}
+        <Galeria posts={posts} />
+      </main>
     </>
   )
 }

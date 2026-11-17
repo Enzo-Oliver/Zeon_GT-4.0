@@ -1,68 +1,33 @@
-function GradeFotos({ qtd, src }) {
-  const fotos = Array.from({ length: qtd }, (_, i) => i + 1);
-
-  return (
-    <div className="row justify-content-center gy-1 gx-1">
-      {fotos.map((id) => (
-        <div key={id} className="col-4">
-          <img
-            src={src}
-            alt={`post ${id}`}
-            className="img-fluid w-100 d-block"
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
+import { useState } from "react";
+import FotoModal from "./FotoModal";
 
 function Galeria({ posts = [] }) {
+  const [aberto, setAberto] = useState(null);
+
   return (
-    <div className="tab-content container" id="pills-tabContent">
-      <div
-        className="tab-pane fade show active"
-        id="pills-home"
-        role="tabpanel"
-        aria-labelledby="pills-home-tab"
-        tabIndex="0"
-      >
-        {posts.length > 0 ? (
-          <div className="row justify-content-center gy-1 gx-1">
-            {[...posts].reverse().map((p) => (
-              <div key={p.id} className="col-4">
-                <img
-                  src={p.imagem}
-                  alt={p.texto}
-                  className="img-fluid w-100 d-block"
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <GradeFotos qtd={15} src="https://placehold.co/600" />
-        )}
-      </div>
+    <section className="galeria">
+      <h2 className="galeria-titulo">Publicações</h2>
 
-      <div
-        className="tab-pane fade"
-        id="pills-profile"
-        role="tabpanel"
-        aria-labelledby="pills-profile-tab"
-        tabIndex="0"
-      >
-        <GradeFotos qtd={15} src="https://placehold.co/310x400" />
-      </div>
+      {posts.length === 0 ? (
+        <p className="vazio">Nenhuma publicação ainda.</p>
+      ) : (
+        <div className="grade">
+          {[...posts].reverse().map((p) => (
+            <button
+              type="button"
+              key={p.id}
+              className="grade-item"
+              onClick={() => setAberto(p)}
+              aria-label="Abrir publicação"
+            >
+              <img src={p.imagem} alt={p.texto || "Publicação"} />
+            </button>
+          ))}
+        </div>
+      )}
 
-      <div
-        className="tab-pane fade"
-        id="pills-contact"
-        role="tabpanel"
-        aria-labelledby="pills-contact-tab"
-        tabIndex="0"
-      >
-        <GradeFotos qtd={15} src="https://placehold.co/310x400" />
-      </div>
-    </div>
+      {aberto && <FotoModal post={aberto} aoFechar={() => setAberto(null)} />}
+    </section>
   );
 }
 

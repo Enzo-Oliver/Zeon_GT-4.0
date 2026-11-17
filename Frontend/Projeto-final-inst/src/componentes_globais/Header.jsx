@@ -1,78 +1,138 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, NavLink } from "react-router-dom";
+import logo from "../assets/zeon-logo.png";
+import {
+  Inicio,
+  Explorar,
+  Sino,
+  Mensagem,
+  Usuario,
+  Configuracoes,
+  Sair,
+  Menu,
+} from "../Icones";
 
+// Header no topo (centralizado) + menu lateral que abre pelo hambúrguer
 function Header() {
-   const logado = JSON.parse(localStorage.getItem("usuario"));
+  const logado = JSON.parse(localStorage.getItem("usuario"));
+  const [aberto, setAberto] = useState(false);
 
-   function sair() {
-     localStorage.removeItem("usuario");
-   }
+  // fecha o menu lateral com a tecla Esc
+  useEffect(() => {
+    function aoApertar(e) {
+      if (e.key === "Escape") setAberto(false);
+    }
+    window.addEventListener("keydown", aoApertar);
+    return () => window.removeEventListener("keydown", aoApertar);
+  }, []);
 
-   return (
-       <nav className="navbar bg-1 fg-2">
-          <div className="container-fluid">
-            <button
-              className="btn-icon navbar-toggler"
-              type="button"
-              data-bs-toggle="drawer"
-              data-bs-target="#navbarTogglerDemo03"
-              aria-controls="navbarTogglerDemo03"
-              aria-expanded="false"
-              aria-label="Toggle navigation"
-            >
-              <span className="navbar-toggler-icon" aria-hidden="true"></span>
-            </button>
-            <span className="avatar">
-              <img
-                className="avatar-img position-absolute top-0 end-0"
-                src={logado ? logado.foto : "https://placehold.co/100x100"}
-                alt="mdo"
-              />
-            </span>
-            <dialog
-              className="drawer drawer-end"
-              tabIndex="-1"
-              id="navbarTogglerDemo03"
-              aria-labelledby="navbarTogglerDemo03Label"
-            >
-              <div className="drawer-header">
-                <h5 className="drawer-title" id="navbarTogglerDemo03Label">
-                  Menu
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  data-bs-dismiss="drawer"
-                  aria-label="Close"
-                ></button>
-              </div>
-              <div className="drawer-body">
-                <ul className="navbar-nav me-auto mb-2">
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/feed">
-                      Feed
-                    </Link>
-                  </li>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/perfil">
-                      Perfil
-                    </Link>
-                  </li>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/configuracao">
-                      Configurações
-                    </Link>
-                  </li>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/login" onClick={sair}>
-                      Sair
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </dialog>
-          </div>
+  function sair() {
+    localStorage.removeItem("usuario");
+  }
+
+  function classeTopo({ isActive }) {
+    return isActive ? "topbar-link ativo" : "topbar-link";
+  }
+
+  function classeLado({ isActive }) {
+    return isActive ? "side-link ativo" : "side-link";
+  }
+
+  return (
+    <>
+      <header className="topbar">
+        <nav className="topbar-pill">
+          <button
+            type="button"
+            className="icone-btn"
+            onClick={() => setAberto(true)}
+            aria-label="Abrir menu"
+          >
+            <Menu />
+          </button>
+
+          <Link to="/feed" className="topbar-logo">
+            <img src={logo} alt="Zeon" />
+          </Link>
+
+          <ul className="topbar-nav">
+            <li>
+              <NavLink to="/feed" className={classeTopo} aria-label="Feed">
+                <Inicio size={22} />
+                <span>Feed</span>
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/perfil" className={classeTopo} aria-label="Perfil">
+                <Usuario size={22} />
+                <span>Perfil</span>
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/configuracao" className={classeTopo} aria-label="Configurações">
+                <Configuracoes size={22} />
+                <span>Configurações</span>
+              </NavLink>
+            </li>
+            <li>
+              <Link to="/login" className="topbar-link" onClick={sair} aria-label="Sair">
+                <Sair size={22} />
+                <span>Sair</span>
+              </Link>
+            </li>
+          </ul>
         </nav>
-   ) 
+      </header>
+
+      {/* menu lateral (hambúrguer) */}
+      <div
+        className={aberto ? "gaveta-fundo aberto" : "gaveta-fundo"}
+        onClick={() => setAberto(false)}
+      />
+      <aside className={aberto ? "gaveta aberta" : "gaveta"} aria-hidden={!aberto}>
+        <Link to="/feed" className="side-logo">
+          <img src={logo} alt="Zeon" />
+        </Link>
+
+        <nav className="side-nav">
+          <NavLink to="/feed" className={classeLado} onClick={() => setAberto(false)}>
+            <Inicio />
+            <span>Início</span>
+          </NavLink>
+
+          <span className="side-link desativado" title="Em breve">
+            <Explorar />
+            <span>Explorar</span>
+          </span>
+
+          <span className="side-link desativado" title="Em breve">
+            <Sino />
+            <span>Notificações</span>
+          </span>
+
+          <span className="side-link desativado" title="Em breve">
+            <Mensagem />
+            <span>Mensagens</span>
+          </span>
+
+          <NavLink to="/perfil" className={classeLado} onClick={() => setAberto(false)}>
+            <Usuario />
+            <span>Perfil</span>
+          </NavLink>
+        </nav>
+
+        {logado && (
+          <div className="side-usuario">
+            <img src={logado.foto} alt={logado.nome} />
+            <span className="side-usuario-nome">{logado.nome}</span>
+            <Link to="/login" className="icone-btn" onClick={sair} title="Sair" aria-label="Sair">
+              <Sair size={20} />
+            </Link>
+          </div>
+        )}
+      </aside>
+    </>
+  );
 }
 
 export default Header;

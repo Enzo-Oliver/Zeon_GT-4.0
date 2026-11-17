@@ -1,42 +1,41 @@
+import { Link } from "react-router-dom";
+
 function Informacaes({ usuario, totalPosts }) {
+  const logado = JSON.parse(localStorage.getItem("usuario"));
+  const ehMeuPerfil = logado && logado.nome === usuario.nome;
+
   return (
-    <div className="container py-4">
-      <div className="row">
-        <div className="col-12 col-md-4 offset-md-2">
-          <h5 className="mb-1">{usuario.nome}</h5>
-          <p className="mb-2">{usuario.bio}</p>
-          {usuario.link && (
-            <a href={usuario.link}>{usuario.link.replace("https://", "")}</a>
-          )}
-        </div>
+    <section className="perfil-info">
+      <div className="perfil-info-texto">
+        <h1 className="perfil-nome">@{usuario.nome}</h1>
+        {usuario.bio && <p className="perfil-bio">{usuario.bio}</p>}
 
-        <div className="col-12 col-md-6">
-          <div className="row text-center">
-            <div className="col-4">
-              <b className="d-block">{usuario.seguidores}</b>
-              <span>seguidores</span>
-            </div>
-            <div className="col-4">
-              <b className="d-block">{usuario.seguindo}</b>
-              <span>seguindo</span>
-            </div>
-            <div className="col-4">
-              <b className="d-block">{totalPosts}</b>
-              <span>Posts</span>
-            </div>
-          </div>
+        <p className="perfil-numeros">
+          <span><b>{totalPosts}</b> posts</span>
+          <span><b>{usuario.seguidores.toLocaleString("pt-BR")}</b> seguidores</span>
+          <span><b>{usuario.seguindo.toLocaleString("pt-BR")}</b> seguindo</span>
+        </p>
 
-          <div className="d-flex justify-content-center gap-2 mt-3">
-            <button type="button" className="btn-solid theme-primary btn-lg">
-              Seguir
-            </button>
-            <button type="button" className="btn-solid theme-secondary btn-lg">
-              Enviar Mensagens
-            </button>
-          </div>
-        </div>
+        {usuario.link && (
+          <a href={usuario.link} className="perfil-link">
+            {usuario.link.replace("https://", "")}
+          </a>
+        )}
       </div>
-    </div>
+
+      <div className="perfil-acoes">
+        {ehMeuPerfil ? (
+          <Link to="/configuracao" className="btn btn-fantasma">
+            Editar perfil
+          </Link>
+        ) : (
+          <>
+            <button type="button" className="btn btn-primario">Seguir</button>
+            <button type="button" className="btn btn-fantasma">Mensagem</button>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 

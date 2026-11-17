@@ -1,23 +1,35 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { reduzirImagem } from '../../imagem'
+import { Camera } from '../../Icones'
 
 const URL_API = 'http://localhost:3000'
 
 function Formulario() {
   const logado = JSON.parse(localStorage.getItem('usuario'))
+  const nomeLogado = logado ? logado.nome : null
   const navegar = useNavigate()
 
   const [nome, setNome] = useState(logado ? logado.nome : '')
   const [bio, setBio] = useState(logado ? logado.bio : '')
   const [foto, setFoto] = useState(logado ? logado.foto : '')
+  const [capa, setCapa] = useState('')
   const [erro, setErro] = useState('')
   const [mensagem, setMensagem] = useState('')
 
+  // a capa não fica guardada no login (é pesada), então busca no servidor
+  useEffect(() => {
+    if (!nomeLogado) return
+    fetch(`${URL_API}/usuarios/${nomeLogado}`)
+      .then((r) => r.json())
+      .then((dados) => setCapa(dados.capa || ''))
+      .catch(() => {})
+  }, [nomeLogado])
+
   if (!logado) {
     return (
-      <p className="text-center mt-5">
-        Você precisa <a href="/login">fazer login</a> primeiro.
+      <p className="vazio">
+        Você precisa <Link to="/login">fazer login</Link> primeiro.
       </p>
     )
   }
@@ -27,8 +39,21 @@ function Formulario() {
     if (!arquivo) return
 
     try {
-      const imagem = await reduzirImagem(arquivo, 400)
+      const imagem = await reduzirImagem(arquivo, 500)
       setFoto(imagem)
+      setErro('')
+    } catch (err) {
+      setErro(err.message)
+    }
+  }
+
+  async function escolherCapa(e) {
+    const arquivo = e.target.files[0]
+    if (!arquivo) return
+
+    try {
+      const imagem = await reduzirImagem(arquivo, 1200)
+      setCapa(imagem)
       setErro('')
     } catch (err) {
       setErro(err.message)
@@ -44,7 +69,7 @@ function Formulario() {
       const resposta = await fetch(`${URL_API}/usuarios/${logado.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: nome, bio: bio, foto: foto }),
+        body: JSON.stringify({ nome: nome, bio: bio, foto: foto, capa: capa }),
       })
       const dados = await resposta.json()
 
@@ -55,33 +80,50 @@ function Formulario() {
 
       localStorage.setItem('usuario', JSON.stringify(dados))
       setMensagem('Alterações salvas!')
+      setTimeout(() => navegar('/perfil'), 700)
     } catch {
       setErro('Não consegui falar com o servidor. Ele está ligado?')
     }
   }
 
   return (
-    <div className="d-flex justify-content-center align-items-center py-5">
-      <form
-        className="border border-2 border-white p-4 rounded"
-        style={{ width: "400px" }}
-        onSubmit={salvar}
-      >
-        <div className="text-center mb-3">
-          <img
-            src={foto}
-            alt="Foto de perfil"
-            className="rounded-circle object-fit-cover"
-            style={{ width: "120px", height: "120px" }}
-          />
+    <main className="coluna">
+      <form className="cfg-card" onSubmit={salvar}>
+        <h1 className="cfg-titulo">Editar perfil</h1>
+
+        {/* prévia igual ao perfil: capa retangular + foto de perfil por cima */}
+        <div className="cfg-previa">
+          <label className="cfg-capa" htmlFor="uploadCapa" title="Trocar foto de capa">
+            {capa && <img src={capa} alt="Foto de capa" />}
+            <span className="cfg-cam cfg-cam-capa">
+              <Camera size={22} />
+              Trocar capa
+            </span>
+          </label>
+          <input id="uploadCapa" type="file" accept="image/*" hidden onChange={escolherCapa} />
+
+          <label className="cfg-avatar" htmlFor="uploadFoto" title="Trocar foto de perfil">
+            <img src={foto} alt="Foto de perfil" />
+            <span className="cfg-cam cfg-cam-avatar">
+              <Camera size={26} />
+            </span>
+          </label>
+          <input id="uploadFoto" type="file" accept="image/*" hidden onChange={escolherFoto} />
+
+          <div className="cfg-previa-rodape">
+            <span className="cfg-dica">Capa: imagem retangular (ideal 1200 × 400)</span>
+            {capa && (
+              <button type="button" className="cfg-remover" onClick={() => setCapa('')}>
+                Remover capa
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="nomeUsuario" className="form-label">
-            Trocar nome de usuário:
-          </label>
+        <div className="campo">
+          <label htmlFor="nomeUsuario">Nome de usuário</label>
           <input
-            className="form-control form-control-sm"
+            className="input"
             type="text"
             id="nomeUsuario"
             placeholder="Novo nome de usuário"
@@ -90,51 +132,32 @@ function Formulario() {
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="bioUsuario" className="form-label">
-            Trocar bio:
-          </label>
+        <div className="campo">
+          <label htmlFor="bioUsuario">Bio</label>
           <textarea
-            className="form-control"
+            className="input"
             id="bioUsuario"
             placeholder="Escreva sua bio"
-            rows="3"
+            rows="4"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="uploadFoto" className="form-label">
-            Escolha sua foto de perfil
-          </label>
-          <input
-            className="form-control"
-            type="file"
-            id="uploadFoto"
-            accept="image/*"
-            onChange={escolherFoto}
-          />
-        </div>
+        {erro && <p className="erro">{erro}</p>}
+        {mensagem && <p className="sucesso">{mensagem}</p>}
 
-        {erro && <p className="text-danger">{erro}</p>}
-        {mensagem && <p className="text-success">{mensagem}</p>}
-
-        <div className="d-flex gap-2">
-          <button type="submit" className="btn btn-primary w-100">
-            Salvar
+        <div className="cfg-acoes">
+          <button type="button" className="btn btn-fantasma" onClick={() => navegar('/perfil')}>
+            Cancelar
           </button>
-          <button
-            type="button"
-            className="btn btn-secondary w-100"
-            onClick={() => navegar('/perfil')}
-          >
-            Ver perfil
+          <button type="submit" className="btn btn-primario">
+            Salvar alterações
           </button>
         </div>
       </form>
-    </div>
-  );
+    </main>
+  )
 }
 
-export default Formulario;
+export default Formulario

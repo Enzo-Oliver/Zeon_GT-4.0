@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { reduzirImagem } from '../../imagem'
+import { Imagem, Fechar } from '../../Icones'
 
 const URL_API = 'http://localhost:3000'
 
@@ -24,6 +25,7 @@ function NovoPost({ aoPostar }) {
     } catch (err) {
       setErro(err.message)
     }
+    e.target.value = ''
   }
 
   async function publicar(e) {
@@ -51,7 +53,6 @@ function NovoPost({ aoPostar }) {
       setImagem('')
       setTexto('')
       setErro('')
-      e.target.reset()
       aoPostar()
     } catch {
       setErro('Não consegui falar com o servidor. Ele está ligado?')
@@ -61,40 +62,51 @@ function NovoPost({ aoPostar }) {
   }
 
   return (
-    <div className="container py-3">
-      <div className="row justify-content-center">
-        <div className="col-8 col-md-8 col-lg-6">
-          <form className="border rounded p-3" onSubmit={publicar}>
-            <h6 className="mb-3">Novo post</h6>
-
-            <input
-              className="form-control mb-3"
-              type="file"
-              accept="image/*"
-              onChange={escolherFoto}
-            />
-
-            {imagem && (
-              <img src={imagem} alt="Prévia" className="img-fluid rounded mb-3" />
-            )}
-
-            <textarea
-              className="form-control mb-3"
-              rows="2"
-              placeholder="Escreva uma descrição..."
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-            />
-
-            {erro && <p className="text-danger">{erro}</p>}
-
-            <button type="submit" className="btn btn-primary w-100" disabled={enviando}>
-              {enviando ? 'Publicando...' : 'Publicar'}
-            </button>
-          </form>
-        </div>
+    <form className="composer" onSubmit={publicar}>
+      <div className="composer-linha">
+        <img className="composer-avatar" src={logado.foto} alt={logado.nome} />
+        <textarea
+          className="composer-texto"
+          rows="2"
+          placeholder="Compartilhe algo com a Zeon..."
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+        />
       </div>
-    </div>
+
+      {imagem && (
+        <div className="composer-previa">
+          <img src={imagem} alt="Prévia do post" />
+          <button
+            type="button"
+            className="composer-remover"
+            onClick={() => setImagem('')}
+            aria-label="Remover imagem"
+          >
+            <Fechar size={18} />
+          </button>
+        </div>
+      )}
+
+      {erro && <p className="erro">{erro}</p>}
+
+      <div className="composer-barra">
+        <label className="icone-btn acento" htmlFor="novo-post-foto" title="Adicionar imagem">
+          <Imagem />
+        </label>
+        <input
+          id="novo-post-foto"
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={escolherFoto}
+        />
+
+        <button type="submit" className="btn btn-primario" disabled={enviando}>
+          {enviando ? 'Publicando...' : 'Publicar'}
+        </button>
+      </div>
+    </form>
   )
 }
 

@@ -2,8 +2,17 @@ import { useState, useEffect } from 'react'
 
 const URL_API = 'http://localhost:3000'
 
+function lerVistos() {
+  try {
+    return JSON.parse(localStorage.getItem('storiesVistos')) || []
+  } catch {
+    return []
+  }
+}
+
 function Status() {
   const [stories, setStories] = useState([])
+  const [vistos, setVistos] = useState(lerVistos())
 
   useEffect(() => {
     fetch(`${URL_API}/stories`)
@@ -11,33 +20,30 @@ function Status() {
       .then((dados) => setStories(dados))
   }, [])
 
+  function abrir(id) {
+    if (vistos.includes(id)) return
+    const novos = [...vistos, id]
+    setVistos(novos)
+    localStorage.setItem('storiesVistos', JSON.stringify(novos))
+  }
+
   return (
-    <div className="container py-3">
-      <div className="card border-0 shadow-sm p-3">
-        <div className="d-flex gap-3 overflow-x-auto pb-2">
-          {stories.map((story) => (
-            <div 
-              key={story.id} 
-              className="d-flex flex-column align-items-center text-center flex-shrink-0"
-              style={{ width: '70px' }}
-            >
-              <div className="p-1">
-                <img
-                  src={story.img}
-                  className="rounded-circle img-fluid border border-2 border-white d-block"
-                  alt={story.name}
-                  style={{ width: '56px', height: '56px', objectFit: 'cover' }}
-                />
-              </div>
-              <span className="small text-truncate w-100 mt-1" style={{ fontSize: '0.75rem' }}>
-                {story.name}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="stories">
+      {stories.map((story) => (
+        <button
+          type="button"
+          key={story.id}
+          className="story"
+          onClick={() => abrir(story.id)}
+        >
+          <span className={vistos.includes(story.id) ? 'story-anel visto' : 'story-anel'}>
+            <img src={story.img} alt={story.name} />
+          </span>
+          <span className="story-nome">{story.name}</span>
+        </button>
+      ))}
     </div>
-  );
+  )
 }
 
-export default Status;
+export default Status

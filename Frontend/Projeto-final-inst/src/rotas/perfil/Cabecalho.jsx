@@ -1,18 +1,15 @@
-function Cabecalho({ foto }) {
+import icone from "../../assets/zeon-icone.png";
+
+function Cabecalho({ foto, capa }) {
   return (
-    <div className="position-relative w-100">
-      <img
-        src="https://placehold.co/1200x400"
-        className="w-100 object-fit-cover d-block"
-        style={{ height: "300px" }}
-        alt="Imagem de fundo"
-      />
-      <img
-        src={foto}
-        className="position-absolute top-50 start-0 translate-middle-y ms-4 rounded-circle border border-5 border-white object-fit-cover"
-        style={{ width: "200px", height: "200px" }}
-        alt="Foto de perfil"
-      />
+    <div className="capa-area">
+      <div
+        className={capa ? "capa com-imagem" : "capa"}
+        style={capa ? { backgroundImage: `url("${capa}")` } : undefined}
+      >
+        {!capa && <img src={icone} className="capa-marca" alt="" />}
+      </div>
+      <img src={foto} className="capa-avatar" alt="Foto de perfil" />
     </div>
   );
 }
