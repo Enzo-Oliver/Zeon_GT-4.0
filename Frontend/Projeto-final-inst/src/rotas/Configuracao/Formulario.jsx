@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { reduzirImagem } from '../../imagem'
 import { Camera } from '../../Icones'
+import Conta from './Conta'
 
 import { api } from '../../api'
 
@@ -156,6 +157,8 @@ function Formulario() {
           </button>
         </div>
       </form>
+
+      <Conta />
     </main>
   )
 }

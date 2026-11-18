@@ -351,6 +351,33 @@ app.patch('/usuarios/:id', autenticar, async (req, res) => {
   res.json(publico(atualizado))
 })
 
+// ---------- Conta (só a própria pessoa vê) ----------
+
+app.get('/conta', autenticar, (req, res) => {
+  res.json({ email: req.usuario.email })
+})
+
+// trocar senha: precisa confirmar a senha atual
+app.patch('/conta/senha', autenticar, async (req, res) => {
+  const { usuarios, sessoes } = await conectar()
+  const { senhaAtual, novaSenha } = req.body
+
+  if (senhaAtual !== req.usuario.senha) {
+    return res.status(400).json({ erro: 'A senha atual está errada.' })
+  }
+  if (!novaSenha || novaSenha.length < 6) {
+    return res.status(400).json({ erro: 'A nova senha precisa ter pelo menos 6 caracteres.' })
+  }
+  if (novaSenha === senhaAtual) {
+    return res.status(400).json({ erro: 'A nova senha precisa ser diferente da atual.' })
+  }
+
+  await usuarios.updateOne({ id: req.usuario.id }, { $set: { senha: novaSenha } })
+  // desconecta a conta dos outros aparelhos (continua logado só neste)
+  await sessoes.deleteMany({ usuarioId: req.usuario.id, token: { $ne: req.token } })
+  res.json({ ok: true })
+})
+
 app.post('/cadastro', async (req, res) => {
   const { usuarios } = await conectar()
   const { nome, email, senha } = req.body

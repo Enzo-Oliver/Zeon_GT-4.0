@@ -804,6 +804,12 @@ textarea.input { resize: none; }
 }
 .cfg-remover:hover { text-decoration: underline; }
 .cfg-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.cfg-conta { margin-top: 20px; }
+.cfg-subtitulo { font-size: 1.15rem; font-weight: 800; margin-bottom: 18px; }
+.cfg-conta .input[readonly] { color: var(--texto-suave); cursor: default; }
+.cfg-senha-linha { display: flex; gap: 10px; }
+.cfg-senha-linha .input { flex: 1; min-width: 0; }
+.cfg-senha-linha .btn { flex-shrink: 0; }
 
 /* ---------- Celular ---------- */
 @media (max-width: 900px) {
