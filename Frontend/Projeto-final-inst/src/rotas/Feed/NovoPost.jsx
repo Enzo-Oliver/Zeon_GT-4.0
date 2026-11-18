@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { reduzirImagem } from '../../imagem'
 import { Imagem, Fechar } from '../../Icones'
 
-const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { api } from '../../api'
 
 function NovoPost({ aoPostar }) {
   const logado = JSON.parse(localStorage.getItem('usuario'))
@@ -13,6 +13,19 @@ function NovoPost({ aoPostar }) {
   const [enviando, setEnviando] = useState(false)
 
   if (!logado) return null
+
+  // a conta de moderação não publica: no lugar do campo de post aparece um aviso
+  if (logado.admin) {
+    return (
+      <div className="composer moderacao-aviso">
+        <b>Modo moderação</b>
+        <span>
+          Esta conta não aparece na rede social. Para remover algo impróprio, use o menu ⋯ do post
+          ou a lixeira dos comentários e dos stories.
+        </span>
+      </div>
+    )
+  }
 
   async function escolherFoto(e) {
     const arquivo = e.target.files[0]
@@ -38,12 +51,8 @@ function NovoPost({ aoPostar }) {
 
     setEnviando(true)
     try {
-      const resposta = await fetch(`${URL_API}/posts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuario: logado.nome, imagem: imagem, texto: texto }),
-      })
-      const dados = await resposta.json()
+      const resposta = await api('/posts', { metodo: 'POST', corpo: { imagem: imagem, texto: texto } })
+      const dados = resposta.dados
 
       if (!resposta.ok) {
         setErro(dados.erro)

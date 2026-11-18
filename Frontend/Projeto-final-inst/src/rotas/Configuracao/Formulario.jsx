@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { reduzirImagem } from '../../imagem'
 import { Camera } from '../../Icones'
 
-const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { api } from '../../api'
 
 function Formulario() {
   const logado = JSON.parse(localStorage.getItem('usuario'))
@@ -20,8 +20,8 @@ function Formulario() {
   // a capa não fica guardada no login (é pesada), então busca no servidor
   useEffect(() => {
     if (!nomeLogado) return
-    fetch(`${URL_API}/usuarios/${nomeLogado}`)
-      .then((r) => r.json())
+    api(`/usuarios/${encodeURIComponent(nomeLogado)}`)
+      .then((r) => r.dados || {})
       .then((dados) => setCapa(dados.capa || ''))
       .catch(() => {})
   }, [nomeLogado])
@@ -66,19 +66,19 @@ function Formulario() {
     setMensagem('')
 
     try {
-      const resposta = await fetch(`${URL_API}/usuarios/${logado.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: nome, bio: bio, foto: foto, capa: capa }),
+      const resposta = await api(`/usuarios/${logado.id}`, {
+        metodo: 'PATCH',
+        corpo: { nome: nome, bio: bio, foto: foto, capa: capa },
       })
-      const dados = await resposta.json()
+      const dados = resposta.dados
 
       if (!resposta.ok) {
         setErro(dados.erro)
         return
       }
 
-      localStorage.setItem('usuario', JSON.stringify(dados))
+      // mantém o token do login junto com os dados novos
+      localStorage.setItem('usuario', JSON.stringify({ ...dados, token: logado.token }))
       setMensagem('Alterações salvas!')
       setTimeout(() => navegar('/perfil'), 700)
     } catch {

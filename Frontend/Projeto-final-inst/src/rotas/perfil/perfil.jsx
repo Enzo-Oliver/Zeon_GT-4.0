@@ -1,33 +1,57 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import Header from "../../componentes_globais/Header"
 import Cabecalho from "./Cabecalho"
 import Informacaes from "./Informacaes"
 import Galeria from "./Galeria"
 
-const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { URL_API, usuarioLogado } from '../../api'
 
+// /perfil mostra o seu perfil; /perfil/:nome mostra o perfil de outra pessoa
 function Perfil() {
+  const { nome } = useParams()
+  const logado = JSON.parse(localStorage.getItem('usuario'))
+  const quem = nome || logado.nome
+
+  // a "key" faz o perfil recomeçar do zero quando muda de pessoa
+  return <ConteudoPerfil key={quem} nome={quem} />
+}
+
+function ConteudoPerfil({ nome }) {
   const [usuario, setUsuario] = useState(null)
   const [posts, setPosts] = useState([])
-  const navegar = useNavigate()
+  const [naoExiste, setNaoExiste] = useState(false)
 
   useEffect(() => {
-    const logado = JSON.parse(localStorage.getItem('usuario'))
-
-    if (!logado) {
-      navegar('/login')
-      return
-    }
-
-    fetch(`${URL_API}/usuarios/${logado.nome}`)
-      .then((r) => r.json())
-      .then((dados) => setUsuario(dados))
+    // manda o token: o perfil da conta de moderação só abre para ela mesma
+    const token = usuarioLogado()?.token
+    fetch(`${URL_API}/usuarios/${encodeURIComponent(nome)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => {
+        if (r.status === 404) {
+          setNaoExiste(true)
+          return null
+        }
+        return r.json()
+      })
+      .then((dados) => dados && setUsuario(dados))
 
     fetch(`${URL_API}/posts`)
       .then((r) => r.json())
-      .then((todos) => setPosts(todos.filter((p) => p.usuario === logado.nome)))
-  }, [navegar])
+      .then((todos) => setPosts(todos.filter((p) => p.usuario === nome)))
+  }, [nome])
+
+  if (naoExiste) {
+    return (
+      <>
+        <Header />
+        <main className="perfil">
+          <p className="vazio">Usuário @{nome} não encontrado.</p>
+        </main>
+      </>
+    )
+  }
 
   return (
     <>

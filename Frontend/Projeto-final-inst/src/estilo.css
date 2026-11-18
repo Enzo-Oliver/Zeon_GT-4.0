@@ -366,6 +366,105 @@ textarea.input { resize: none; }
   font-size: 0.75rem;
   color: var(--texto-suave);
 }
+.story-novo .story-anel { position: relative; }
+.story-novo.enviando { opacity: 0.6; cursor: wait; }
+.story-mais {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--acento);
+  color: #fff;
+  border: 3px solid var(--bg);
+}
+
+/* ---------- Visualizador de stories ---------- */
+.story-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 6, 10, 0.94);
+}
+.story-tela {
+  position: relative;
+  width: min(420px, 100vw);
+  height: min(746px, 100dvh);
+  overflow: hidden;
+  border-radius: 18px;
+  background: #000;
+}
+.story-imagem {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.story-barras {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+}
+.story-barra {
+  flex: 1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.3);
+}
+.story-barra span {
+  display: block;
+  height: 100%;
+  background: #fff;
+}
+.story-topo {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 24px 14px;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), transparent);
+  color: #fff;
+  font-size: 0.9rem;
+}
+.story-topo img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.story-topo span { color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; }
+.story-acoes { display: flex; gap: 2px; margin-left: auto; }
+.story-acoes .icone-btn { color: #fff; }
+.story-toque {
+  position: absolute;
+  top: 70px;
+  bottom: 0;
+  z-index: 1;
+  width: 50%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.story-toque.esquerda { left: 0; }
+.story-toque.direita { right: 0; }
+@media (max-width: 480px) {
+  .story-tela { border-radius: 0; }
+}
 
 /* ---------- Novo post ---------- */
 .composer {
@@ -438,7 +537,10 @@ textarea.input { resize: none; }
 .post-topo { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
 .post-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
 .post-quem { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; }
-.post-nome { font-weight: 600; }
+.post-nome { font-weight: 600; color: var(--texto); text-decoration: none; }
+.post-nome:hover { color: var(--acento); }
+.post-avatar-link { display: block; flex-shrink: 0; border-radius: 50%; }
+.post-avatar-link:hover .post-avatar { outline: 2px solid var(--acento); outline-offset: 2px; }
 .post-tempo { color: var(--texto-suave); font-size: 0.8rem; }
 .post-tempo::before { content: "• "; }
 .post-imagem {
@@ -453,6 +555,59 @@ textarea.input { resize: none; }
 .post-curtidas { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
 .post-legenda { color: #cdd3df; }
 .post-legenda b { color: var(--texto); }
+
+/* aviso que aparece no feed da conta de moderação */
+.moderacao-aviso {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-color: rgba(248, 113, 113, 0.35);
+  font-size: 0.9rem;
+}
+.moderacao-aviso b { color: var(--perigo); }
+.moderacao-aviso span { color: var(--texto-suave); }
+
+/* ---------- Comentários ---------- */
+.post-comentar { display: inline-flex; align-items: center; gap: 4px; width: auto; padding: 0 8px; }
+.post-comentar span { font-size: 0.85rem; font-weight: 600; }
+.post-comentar.ativo { color: var(--acento); }
+.comentarios {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--borda);
+}
+.comentarios-vazio { margin: 0; color: var(--texto-suave); font-size: 0.85rem; }
+.comentarios-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.comentario { display: flex; align-items: flex-start; gap: 10px; }
+.comentario img,
+.comentar img {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.comentario-corpo { flex: 1; min-width: 0; }
+.comentario-corpo p { margin: 0; color: #cdd3df; font-size: 0.9rem; overflow-wrap: anywhere; }
+.comentario-nome { font-weight: 600; color: var(--texto); text-decoration: none; }
+.comentario-nome:hover { color: var(--acento); }
+.comentario-tempo { color: var(--texto-suave); font-size: 0.75rem; }
+.comentario-apagar { width: 28px; height: 28px; flex-shrink: 0; color: var(--texto-suave); }
+.comentario-apagar:hover { color: var(--perigo); }
+.comentar { display: flex; align-items: center; gap: 10px; }
+.comentar .input { flex: 1; min-width: 0; }
+.comentar .btn { flex-shrink: 0; }
 
 .post-menu-area { position: relative; }
 .post-menu-fundo { position: fixed; inset: 0; z-index: 20; }
@@ -472,6 +627,7 @@ textarea.input { resize: none; }
   display: flex;
   align-items: center;
   gap: 10px;
+  white-space: nowrap;
   width: 100%;
   padding: 10px 12px;
   border: 0;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
+import { api } from "../api";
 import logo from "../assets/zeon-logo.png";
 import {
   Inicio,
@@ -27,6 +28,7 @@ function Header() {
   }, []);
 
   function sair() {
+    api("/logout", { metodo: "POST" }).catch(() => {});
     localStorage.removeItem("usuario");
   }
 
@@ -63,7 +65,7 @@ function Header() {
               </NavLink>
             </li>
             <li>
-              <NavLink to="/perfil" className={classeTopo} aria-label="Perfil">
+              <NavLink to="/perfil" end className={classeTopo} aria-label="Perfil">
                 <Usuario size={22} />
                 <span>Perfil</span>
               </NavLink>
@@ -115,7 +117,7 @@ function Header() {
             <span>Mensagens</span>
           </span>
 
-          <NavLink to="/perfil" className={classeLado} onClick={() => setAberto(false)}>
+          <NavLink to="/perfil" end className={classeLado} onClick={() => setAberto(false)}>
             <Usuario />
             <span>Perfil</span>
           </NavLink>

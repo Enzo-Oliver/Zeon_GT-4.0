@@ -43,7 +43,19 @@ export function conectar() {
         await usuarios.insertMany(usuariosPadrao.map((u) => ({ ...u })))
         await posts.insertMany(postsPadrao.map((p) => ({ ...p })))
       }
-      return { usuarios, posts }
+      // stories somem sozinhos 24h depois de criados (o MongoDB apaga)
+      const stories = db.collection('stories')
+      await stories.createIndex({ criadoEm: 1 }, { expireAfterSeconds: 60 * 60 * 24 })
+
+      // login: cada sessão vale 30 dias
+      const sessoes = db.collection('sessoes')
+      await sessoes.createIndex({ token: 1 }, { unique: true })
+      await sessoes.createIndex({ criadoEm: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 })
+
+      const comentarios = db.collection('comentarios')
+      await comentarios.createIndex({ postId: 1 })
+
+      return { usuarios, posts, stories, sessoes, comentarios }
     })()
     promessa.catch(() => { promessa = null })
   }
