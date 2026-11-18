@@ -5,7 +5,7 @@ import GradientWaves from "./../../componentes_globais/GradientWaves"
 import Posts from "./Posts"
 import NovoPost from "./NovoPost"
 
-const URL_API = 'http://localhost:3000'
+const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function Feed() {
   const [posts, setPosts] = useState([])

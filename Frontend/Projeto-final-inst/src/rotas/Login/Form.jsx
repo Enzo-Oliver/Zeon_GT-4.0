@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Olho, OlhoFechado } from '../../Icones'
 
-const URL_API = 'http://localhost:3000'
+const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function Form() {
   const [email, setEmail] = useState('')

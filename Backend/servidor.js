@@ -1,47 +1,11 @@
 import express from 'express'
 import cors from 'cors'
-import fs from 'fs'
+import { conectar, SEM_ID } from './banco.js'
 
 const app = express()
-const PORTA = 3000
-const ARQUIVO = 'dados.json'
 
 app.use(cors())
-app.use(express.json({ limit: '10mb' }))
-
-function carregar() {
-  if (!fs.existsSync(ARQUIVO)) {
-    return {
-      usuarios: [
-        {
-          id: 1, nome: 'enzooliverr_', email: 'enzo@gmail.com', senha: '123456',
-          bio: 'Tec. Redes | ADS - Senac', foto: 'https://placehold.co/300x300',
-          seguidores: 828, seguindo: 1059, link: 'https://github.com/Enzo-Oliver',
-        },
-        {
-          id: 2, nome: 'opovoonline', email: 'povo@gmail.com', senha: '123456',
-          bio: 'Jornal O Povo', foto: 'https://placehold.co/300x300',
-          seguidores: 1000, seguindo: 10, link: '',
-        },
-      ],
-      posts: [
-        { id: 1, usuario: 'opovoonline', imagem: 'https://placehold.co/600x400', texto: 'Popular Atacadista inaugura unidade', curtidas: 0 },
-      ],
-      stories: [
-        { id: 1, name: 'usuario', img: 'https://placehold.co/100x100' },
-        { id: 2, name: 'usuario', img: 'https://placehold.co/100x100' },
-      ],
-    }
-  }
-  const texto = fs.readFileSync(ARQUIVO, 'utf-8')
-  return JSON.parse(texto)
-}
-
-function salvar() {
-  fs.writeFileSync(ARQUIVO, JSON.stringify(dados, null, 2))
-}
-
-let dados = carregar()
+app.use(express.json({ limit: '4mb' }))
 
 function publico(u) {
   return {
@@ -59,75 +23,87 @@ app.get('/', (req, res) => {
   res.send('Olá! O servidor está funcionando.')
 })
 
-app.get('/posts', (req, res) => {
+app.get('/posts', async (req, res) => {
+  const { usuarios, posts } = await conectar()
   const usuarioId = Number(req.query.usuarioId)
 
-  const lista = dados.posts.map((p) => {
-    const autor = dados.usuarios.find((u) => u.nome === p.usuario)
+  const todos = await posts.find({}, SEM_ID).sort({ id: 1 }).toArray()
+  const autores = await usuarios.find({}, { projection: { _id: 0, nome: 1, foto: 1 } }).toArray()
+  const fotos = {}
+  autores.forEach((a) => { fotos[a.nome] = a.foto })
+
+  const lista = todos.map((p) => {
     const { curtidoPor, ...resto } = p
     return {
       ...resto,
-      foto: autor ? publico(autor).foto : 'https://placehold.co/100x100',
+      foto: fotos[p.usuario] || 'https://placehold.co/100x100',
       curtiu: (curtidoPor || []).includes(usuarioId),
     }
   })
   res.json(lista)
 })
 
-app.post('/posts', (req, res) => {
+app.post('/posts', async (req, res) => {
+  const { posts } = await conectar()
   const { usuario, imagem, texto } = req.body
 
   if (!imagem || imagem.trim() === '') {
     return res.status(400).json({ erro: 'Coloque a imagem do post.' })
   }
 
-  const novo = { id: Date.now(), usuario, imagem, texto, curtidas: 0, curtidoPor: [], criadoEm: new Date().toISOString() }
-  dados.posts.push(novo)
-  salvar()
-  res.status(201).json(novo)
+  const novo = {
+    id: Date.now(), usuario, imagem, texto, curtidas: 0, curtidoPor: [],
+    criadoEm: new Date().toISOString(),
+  }
+  await posts.insertOne({ ...novo })
+  const { curtidoPor, ...resposta } = novo
+  res.status(201).json(resposta)
 })
 
-// curtir / descurtir: se o usuário já curtiu, tira a curtida
-app.patch('/posts/:id', (req, res) => {
+// curtir / descurtir
+app.patch('/posts/:id', async (req, res) => {
+  const { posts } = await conectar()
   const id = Number(req.params.id)
-  const post = dados.posts.find((p) => p.id === id)
+  const post = await posts.findOne({ id }, SEM_ID)
 
   if (!post) {
     return res.status(404).json({ erro: 'Post não encontrado.' })
   }
 
   const usuarioId = req.body ? req.body.usuarioId : undefined
-  if (!post.curtidoPor) post.curtidoPor = []
+  let curtidoPor = post.curtidoPor || []
+  let curtidas = post.curtidas
 
   if (usuarioId === undefined) {
-    post.curtidas = post.curtidas + 1
-  } else if (post.curtidoPor.includes(usuarioId)) {
-    post.curtidoPor = post.curtidoPor.filter((i) => i !== usuarioId)
-    post.curtidas = Math.max(0, post.curtidas - 1)
+    curtidas = curtidas + 1
+  } else if (curtidoPor.includes(usuarioId)) {
+    curtidoPor = curtidoPor.filter((i) => i !== usuarioId)
+    curtidas = Math.max(0, curtidas - 1)
   } else {
-    post.curtidoPor.push(usuarioId)
-    post.curtidas = post.curtidas + 1
+    curtidoPor = [...curtidoPor, usuarioId]
+    curtidas = curtidas + 1
   }
 
-  salvar()
-  res.json({ id: post.id, curtidas: post.curtidas, curtiu: post.curtidoPor.includes(usuarioId) })
+  await posts.updateOne({ id }, { $set: { curtidas, curtidoPor } })
+  res.json({ id, curtidas, curtiu: curtidoPor.includes(usuarioId) })
 })
 
-app.delete('/posts/:id', (req, res) => {
-  const id = Number(req.params.id)
-  dados.posts = dados.posts.filter((p) => p.id !== id)
-  salvar()
+app.delete('/posts/:id', async (req, res) => {
+  const { posts } = await conectar()
+  await posts.deleteOne({ id: Number(req.params.id) })
   res.status(204).end()
 })
 
-app.get('/stories', (req, res) => {
-  const lista = dados.usuarios.map((u) => ({ id: u.id, name: u.nome, img: publico(u).foto }))
-  res.json(lista)
+app.get('/stories', async (req, res) => {
+  const { usuarios } = await conectar()
+  const todos = await usuarios.find({}, SEM_ID).toArray()
+  res.json(todos.map((u) => ({ id: u.id, name: u.nome, img: publico(u).foto })))
 })
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
+  const { usuarios } = await conectar()
   const { email, senha } = req.body
-  const usuario = dados.usuarios.find((u) => u.email === email && u.senha === senha)
+  const usuario = await usuarios.findOne({ email, senha }, SEM_ID)
 
   if (!usuario) {
     return res.status(401).json({ erro: 'Email ou senha errados.' })
@@ -136,8 +112,9 @@ app.post('/login', (req, res) => {
   res.json(publico(usuario))
 })
 
-app.get('/usuarios/:nome', (req, res) => {
-  const usuario = dados.usuarios.find((u) => u.nome === req.params.nome)
+app.get('/usuarios/:nome', async (req, res) => {
+  const { usuarios } = await conectar()
+  const usuario = await usuarios.findOne({ nome: req.params.nome }, SEM_ID)
 
   if (!usuario) {
     return res.status(404).json({ erro: 'Usuário não encontrado.' })
@@ -146,40 +123,43 @@ app.get('/usuarios/:nome', (req, res) => {
   res.json({ ...publico(usuario), capa: usuario.capa ?? '' })
 })
 
-app.patch('/usuarios/:id', (req, res) => {
+// configurações: nome, bio, foto e capa
+app.patch('/usuarios/:id', async (req, res) => {
+  const { usuarios, posts } = await conectar()
   const id = Number(req.params.id)
-  const usuario = dados.usuarios.find((u) => u.id === id)
+  const usuario = await usuarios.findOne({ id }, SEM_ID)
 
   if (!usuario) {
     return res.status(404).json({ erro: 'Usuário não encontrado.' })
   }
 
   const { nome, bio, foto, capa } = req.body
+  const mudancas = {}
 
   if (nome !== undefined) {
     if (nome.trim() === '') {
       return res.status(400).json({ erro: 'O nome de usuário não pode ficar vazio.' })
     }
-    const existe = dados.usuarios.find((u) => u.nome === nome.trim() && u.id !== id)
+    const existe = await usuarios.findOne({ nome: nome.trim(), id: { $ne: id } })
     if (existe) {
       return res.status(409).json({ erro: 'Esse nome de usuário já está em uso.' })
     }
-
-    dados.posts.forEach((p) => {
-      if (p.usuario === usuario.nome) p.usuario = nome.trim()
-    })
-    usuario.nome = nome.trim()
+    // os posts antigos passam a mostrar o nome novo
+    await posts.updateMany({ usuario: usuario.nome }, { $set: { usuario: nome.trim() } })
+    mudancas.nome = nome.trim()
   }
 
-  if (bio !== undefined) usuario.bio = bio
-  if (foto !== undefined) usuario.foto = foto
-  if (capa !== undefined) usuario.capa = capa
+  if (bio !== undefined) mudancas.bio = bio
+  if (foto !== undefined) mudancas.foto = foto
+  if (capa !== undefined) mudancas.capa = capa
 
-  salvar()
-  res.json(publico(usuario))
+  await usuarios.updateOne({ id }, { $set: mudancas })
+  const atualizado = await usuarios.findOne({ id }, SEM_ID)
+  res.json(publico(atualizado))
 })
 
-app.post('/cadastro', (req, res) => {
+app.post('/cadastro', async (req, res) => {
+  const { usuarios } = await conectar()
   const { nome, email, senha } = req.body
 
   if (!nome || nome.trim() === '' || !email || email.trim() === '' || !senha) {
@@ -188,10 +168,10 @@ app.post('/cadastro', (req, res) => {
   if (senha.length < 6) {
     return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres.' })
   }
-  if (dados.usuarios.find((u) => u.nome === nome.trim())) {
+  if (await usuarios.findOne({ nome: nome.trim() })) {
     return res.status(409).json({ erro: 'Esse nome de usuário já está em uso.' })
   }
-  if (dados.usuarios.find((u) => u.email === email.trim())) {
+  if (await usuarios.findOne({ email: email.trim() })) {
     return res.status(409).json({ erro: 'Esse email já está cadastrado.' })
   }
 
@@ -199,11 +179,22 @@ app.post('/cadastro', (req, res) => {
     id: Date.now(), nome: nome.trim(), email: email.trim(), senha: senha,
     bio: '', foto: 'https://placehold.co/300x300', seguidores: 0, seguindo: 0, link: '',
   }
-  dados.usuarios.push(novo)
-  salvar()
+  await usuarios.insertOne({ ...novo })
   res.status(201).json(publico(novo))
 })
 
-app.listen(PORTA, () => {
-  console.log(`Servidor rodando em http://localhost:${PORTA}`)
+// erros viram uma resposta em JSON (em vez de derrubar o servidor)
+app.use((err, req, res, next) => {
+  console.error(err)
+  res.status(500).json({ erro: 'Erro no servidor. Confira a conexão com o banco.' })
 })
+
+// No computador: sobe o servidor. Na Vercel: só exporta o app.
+if (!process.env.VERCEL) {
+  const PORTA = process.env.PORT || 3000
+  app.listen(PORTA, () => {
+    console.log(`Servidor rodando em http://localhost:${PORTA}`)
+  })
+}
+
+export default app

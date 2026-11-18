@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import Foto_cadrastro from './Foto_cadrastro'
 import { Olho, OlhoFechado } from '../../Icones'
 
-const URL_API = 'http://localhost:3000'
+const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function Cadastro() {
   const [nome, setNome] = useState('')

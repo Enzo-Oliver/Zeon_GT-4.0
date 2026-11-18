@@ -1,5 +1,5 @@
 import "bootstrap/dist/css/bootstrap.min.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./rotas/Login/Login";
 import Cadastro from "./rotas/Login/Cadastro";
@@ -9,7 +9,7 @@ import Configuracao from "./rotas/Configuracao/Configuracao";
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
@@ -18,7 +18,7 @@ function App() {
         <Route path="/perfil" element={<Perfil />} />
         <Route path="/configuracao" element={<Configuracao />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

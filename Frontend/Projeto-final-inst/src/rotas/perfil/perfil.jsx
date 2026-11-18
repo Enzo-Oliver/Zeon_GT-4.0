@@ -5,7 +5,7 @@ import Cabecalho from "./Cabecalho"
 import Informacaes from "./Informacaes"
 import Galeria from "./Galeria"
 
-const URL_API = 'http://localhost:3000'
+const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function Perfil() {
   const [usuario, setUsuario] = useState(null)

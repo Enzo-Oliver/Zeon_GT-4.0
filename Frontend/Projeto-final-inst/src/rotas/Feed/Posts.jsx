@@ -3,7 +3,7 @@ import PulseHeart from '../../componentes_globais/PulseHeart'
 import { Comentario, Enviar, Mais, Lixeira } from '../../Icones'
 import { tempoRelativo } from '../../tempo'
 
-const URL_API = 'http://localhost:3000'
+const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function Posts({ post, aoCurtir }) {
   const logado = JSON.parse(localStorage.getItem('usuario'))
