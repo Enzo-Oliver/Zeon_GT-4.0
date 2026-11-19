@@ -170,7 +170,8 @@ textarea.input { resize: none; }
   top: 28px;
   right: 28px;
   z-index: 2;
-  width: 130px;
+  width: 64px;
+  border-radius: 14px;
   opacity: 0.95;
 }
 .auth-marca-icone { display: none; }
@@ -211,7 +212,7 @@ textarea.input { resize: none; }
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
-.topbar-logo { display: flex; align-items: center; margin-right: auto; }
+.topbar-logo { display: flex; align-items: center; gap: 8px; margin-right: auto; }
 .topbar-logo img { height: 34px; width: auto; display: block; }
 .topbar-nav {
   display: flex;
@@ -277,8 +278,10 @@ textarea.input { resize: none; }
 }
 .coluna { position: relative; z-index: 1; }
 
-.side-logo { display: block; padding: 0 10px; margin-bottom: 26px; }
+.side-logo { display: flex; align-items: center; gap: 10px; padding: 0 10px; margin-bottom: 26px; }
 .side-logo img { height: 52px; width: auto; display: block; }
+.topbar-logo .logo-app { height: 36px; border-radius: 9px; }
+.side-logo .logo-app { height: 52px; border-radius: 12px; }
 .side-nav { display: flex; flex-direction: column; gap: 4px; }
 .side-link {
   display: flex;
@@ -825,7 +828,7 @@ textarea.input { resize: none; }
   }
   .auth-marca-spiral { display: none; }
   .auth-marca-icone { display: block; width: 84px; }
-  .auth-marca-logo { position: static; width: 120px; }
+  .auth-marca-logo { position: static; width: 64px; }
   .auth-lado { padding: 28px 20px; align-items: flex-start; }
 
   .topbar { padding: 10px 10px 0; }

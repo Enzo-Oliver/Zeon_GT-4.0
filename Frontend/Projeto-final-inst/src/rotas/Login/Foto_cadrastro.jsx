@@ -1,5 +1,5 @@
 import InfiniteSpiral from "../../componentes_globais/InfiniteSpiral"
-import logo from "../../assets/zeon-logo.png"
+import logo from "../../assets/zeon-app.png"
 import icone from "../../assets/zeon-icone.png"
 import card1 from "../../assets/spiral/card-1.jpg"
 import card2 from "../../assets/spiral/card-2.jpg"

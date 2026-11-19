@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { api } from "../api";
-import logo from "../assets/zeon-logo.png";
+import app from "../assets/zeon-app.png";
 import {
   Inicio,
   Explorar,
@@ -54,7 +54,7 @@ function Header() {
           </button>
 
           <Link to="/feed" className="topbar-logo">
-            <img src={logo} alt="Zeon" />
+            <img src={app} className="logo-app" alt="Zeon" />
           </Link>
 
           <ul className="topbar-nav">
@@ -93,7 +93,7 @@ function Header() {
       />
       <aside className={aberto ? "gaveta aberta" : "gaveta"} aria-hidden={!aberto}>
         <Link to="/feed" className="side-logo">
-          <img src={logo} alt="Zeon" />
+          <img src={app} className="logo-app" alt="Zeon" />
         </Link>
 
         <nav className="side-nav">
