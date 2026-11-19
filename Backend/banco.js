@@ -1,4 +1,5 @@
 import { MongoClient } from 'mongodb'
+import bcrypt from 'bcryptjs'
 
 // Conexão com o MongoDB Atlas (reaproveitada entre as chamadas)
 let promessa = null
@@ -40,7 +41,8 @@ export function conectar() {
 
       // primeira vez: cria os dados de teste
       if ((await usuarios.countDocuments()) === 0) {
-        await usuarios.insertMany(usuariosPadrao.map((u) => ({ ...u })))
+        // as senhas de teste também são guardadas com hash
+        await usuarios.insertMany(usuariosPadrao.map((u) => ({ ...u, senha: bcrypt.hashSync(u.senha, 10) })))
         await posts.insertMany(postsPadrao.map((p) => ({ ...p })))
       }
       // stories vencidos (24h) agora são apagados pelo servidor, junto com a foto no Blob.

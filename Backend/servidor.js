@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 import { put, del } from '@vercel/blob'
 import { conectar, SEM_ID } from './banco.js'
 
@@ -43,6 +44,35 @@ function publico(u) {
     link: u.link ?? '',
     admin: u.admin === true,
   }
+}
+
+// ---------- Senhas com hash (bcrypt) ----------
+// O banco nunca guarda a senha em si, só um hash dela (ex.: "$2b$10$...").
+// Não dá para voltar do hash para a senha; no login o bcrypt só confere se combinam.
+
+const RODADAS = 10
+const ehHash = (s) => typeof s === 'string' && /^\$2[aby]\$\d{2}\$/.test(s)
+// usado quando o email não existe, para o login demorar o mesmo tempo nos dois casos
+const HASH_FALSO = bcrypt.hashSync('senha-que-nao-existe', RODADAS)
+
+function gerarHash(senha) {
+  return bcrypt.hash(senha, RODADAS)
+}
+
+// Confere a senha digitada. Contas antigas, com a senha ainda em texto puro,
+// são convertidas para hash na hora em que a senha confere.
+async function senhaConfere(usuario, senha) {
+  if (!ehTexto(senha)) return false
+  if (!usuario || !ehTexto(usuario.senha)) {
+    await bcrypt.compare(senha, HASH_FALSO)
+    return false
+  }
+  if (ehHash(usuario.senha)) return bcrypt.compare(senha, usuario.senha)
+
+  if (senha !== usuario.senha) return false
+  const { usuarios } = await conectar()
+  await usuarios.updateOne({ id: usuario.id }, { $set: { senha: await gerarHash(senha) } })
+  return true
 }
 
 // ---------- Login com token ----------
@@ -425,9 +455,9 @@ app.post('/login', async (req, res) => {
     return res.status(400).json({ erro: 'Preencha email e senha.' })
   }
 
-  const usuario = await usuarios.findOne({ email, senha }, SEM_ID)
+  const usuario = await usuarios.findOne({ email }, SEM_ID)
 
-  if (!usuario) {
+  if (!(await senhaConfere(usuario, senha))) {
     return res.status(401).json({ erro: 'Email ou senha errados.' })
   }
 
@@ -512,7 +542,7 @@ app.patch('/conta/senha', autenticar, async (req, res) => {
   const { usuarios, sessoes } = await conectar()
   const { senhaAtual, novaSenha } = req.body
 
-  if (!ehTexto(senhaAtual) || senhaAtual !== req.usuario.senha) {
+  if (!(await senhaConfere(req.usuario, senhaAtual))) {
     return res.status(400).json({ erro: 'A senha atual está errada.' })
   }
   if (!ehTexto(novaSenha) || novaSenha.length < 6) {
@@ -522,7 +552,7 @@ app.patch('/conta/senha', autenticar, async (req, res) => {
     return res.status(400).json({ erro: 'A nova senha precisa ser diferente da atual.' })
   }
 
-  await usuarios.updateOne({ id: req.usuario.id }, { $set: { senha: novaSenha } })
+  await usuarios.updateOne({ id: req.usuario.id }, { $set: { senha: await gerarHash(novaSenha) } })
   // desconecta a conta dos outros aparelhos (continua logado só neste)
   await sessoes.deleteMany({ usuarioId: req.usuario.id, token: { $ne: req.token } })
   res.json({ ok: true })
@@ -535,7 +565,7 @@ app.delete('/conta', autenticar, async (req, res) => {
   if (req.usuario.admin) {
     return res.status(403).json({ erro: 'A conta de moderação não pode ser apagada pelo site.' })
   }
-  if (!ehTexto(senha) || senha !== req.usuario.senha) {
+  if (!(await senhaConfere(req.usuario, senha))) {
     return res.status(400).json({ erro: 'Senha errada.' })
   }
 
@@ -601,7 +631,7 @@ app.post('/cadastro', async (req, res) => {
   }
 
   const novo = {
-    id: Date.now(), nome: nome.trim(), email: email.trim(), senha: senha,
+    id: Date.now(), nome: nome.trim(), email: email.trim(), senha: await gerarHash(senha),
     bio: '', foto: 'https://placehold.co/300x300', seguidores: 0, seguindo: 0, link: '',
   }
   await usuarios.insertOne({ ...novo })
