@@ -480,8 +480,14 @@ textarea.input { resize: none; }
 }
 
 /* ---------- Novo post ---------- */
+/* os cards do feed são de "vidro fosco": o fundo animado aparece por trás */
+.composer,
+.post {
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
 .composer {
-  background: var(--superficie);
+  background: rgba(17, 22, 34, 0.7);
   border: 1px solid var(--borda);
   border-radius: var(--raio-card);
   padding: 16px;
@@ -542,7 +548,7 @@ textarea.input { resize: none; }
 /* ---------- Posts ---------- */
 .feed-lista { display: flex; flex-direction: column; gap: 20px; }
 .post {
-  background: var(--superficie);
+  background: rgba(17, 22, 34, 0.7);
   border: 1px solid var(--borda);
   border-radius: var(--raio-card);
   overflow: hidden;
@@ -849,14 +855,6 @@ textarea.input { resize: none; }
     width: 64px;
   }
   .auth-marca-logo { display: none; }
-
-  /* no celular os cards do feed deixam o fundo animado aparecer por trás */
-  .composer,
-  .post {
-    background: rgba(17, 22, 34, 0.7);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-  }
   .auth-lado { padding: 28px 20px; align-items: flex-start; }
 
   .topbar { padding: 10px 10px 0; }
