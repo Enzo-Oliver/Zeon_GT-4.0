@@ -1,12 +1,36 @@
 import express from 'express'
 import cors from 'cors'
 import crypto from 'crypto'
+import { put, del } from '@vercel/blob'
 import { conectar, SEM_ID } from './banco.js'
 
 const app = express()
 
 app.use(cors())
-app.use(express.json({ limit: '4mb' }))
+// as fotos não vêm mais em base64 no JSON, então o limite pode ser pequeno
+app.use(express.json({ limit: '100kb' }))
+
+// ---------- Proteção contra NoSQL injection ----------
+// Sem isso, mandar {"senha": {"$ne": null}} no login faria o MongoDB aceitar
+// "qualquer senha" e entrar na conta de outra pessoa.
+// Aqui qualquer chave que comece com "$" ou tenha "." é recusada.
+function temOperador(valor) {
+  if (Array.isArray(valor)) return valor.some(temOperador)
+  if (valor && typeof valor === 'object') {
+    return Object.keys(valor).some((k) => k.startsWith('$') || k.includes('.') || temOperador(valor[k]))
+  }
+  return false
+}
+
+app.use((req, res, next) => {
+  if (temOperador(req.body) || temOperador(req.query)) {
+    return res.status(400).json({ erro: 'Dados inválidos.' })
+  }
+  next()
+})
+
+// além disso, cada rota confere se os campos são texto mesmo
+const ehTexto = (v) => typeof v === 'string'
 
 function publico(u) {
   return {
@@ -23,7 +47,7 @@ function publico(u) {
 
 // ---------- Login com token ----------
 // No login/cadastro o servidor cria um token secreto e devolve junto com o usuário.
-// O site manda esse token em toda ação (header "Authorization: Bearer <token>"),
+// O site manda esse token em toda chamada (header "Authorization: Bearer <token>"),
 // assim o servidor sabe de verdade quem está fazendo cada coisa.
 
 async function criarSessao(usuario) {
@@ -52,15 +76,6 @@ async function autenticar(req, res, next) {
   next()
 }
 
-// quem está logado, se mandou token (para rotas abertas a todos)
-async function quemEsta(req) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
-  if (!token) return null
-  const { sessoes, usuarios } = await conectar()
-  const sessao = await sessoes.findOne({ token })
-  return sessao ? usuarios.findOne({ id: sessao.usuarioId }, SEM_ID) : null
-}
-
 // a conta de moderação é invisível: não posta, não curte, não comenta e não tem story
 function bloquearModerador(req, res, next) {
   if (req.usuario.admin) {
@@ -74,15 +89,71 @@ function podeApagar(usuario, donoId) {
   return usuario.admin === true || usuario.id === donoId
 }
 
+// ---------- Fotos (Vercel Blob) ----------
+// O site manda a foto em POST /imagens e recebe de volta um link (URL).
+// Posts, stories e perfis guardam só esse link, não a imagem inteira.
+
+const HOST_BLOB = '.public.blob.vercel-storage.com'
+
+// só aceita fotos do nosso Blob (ou as imagens padrão do placehold.co)
+function imagemValida(url) {
+  if (!ehTexto(url)) return false
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' && (u.hostname.endsWith(HOST_BLOB) || u.hostname === 'placehold.co')
+  } catch {
+    return false
+  }
+}
+
+async function apagarImagem(url) {
+  if (!ehTexto(url) || !url.includes(HOST_BLOB)) return
+  try {
+    await del(url)
+  } catch (err) {
+    console.error('Não consegui apagar a foto do Blob:', err.message)
+  }
+}
+
+// confere os primeiros bytes do arquivo (não basta confiar no tipo que o navegador diz)
+function tipoDaImagem(buffer) {
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return { ext: 'jpg', tipo: 'image/jpeg' }
+  if (buffer.subarray(0, 4).toString('hex') === '89504e47') return { ext: 'png', tipo: 'image/png' }
+  if (buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP') {
+    return { ext: 'webp', tipo: 'image/webp' }
+  }
+  return null
+}
+
+app.post(
+  '/imagens',
+  autenticar,
+  express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '4mb' }),
+  async (req, res) => {
+    const arquivo = req.body
+    const imagem = Buffer.isBuffer(arquivo) && arquivo.length > 0 && tipoDaImagem(arquivo)
+
+    if (!imagem) {
+      return res.status(400).json({ erro: 'Envie uma imagem JPG, PNG ou WebP.' })
+    }
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return res.status(500).json({ erro: 'O armazenamento de fotos (Vercel Blob) não está configurado.' })
+    }
+
+    const caminho = `fotos/${req.usuario.id}/${crypto.randomUUID()}.${imagem.ext}`
+    const blob = await put(caminho, arquivo, { access: 'public', contentType: imagem.tipo })
+    res.status(201).json({ url: blob.url })
+  },
+)
+
 app.get('/', (req, res) => {
   res.send('Olá! O servidor está funcionando.')
 })
 
 // ---------- Posts ----------
 
-app.get('/posts', async (req, res) => {
+app.get('/posts', autenticar, async (req, res) => {
   const { usuarios, posts, comentarios } = await conectar()
-  const usuarioId = Number(req.query.usuarioId)
 
   const todos = await posts.find({}, SEM_ID).sort({ id: 1 }).toArray()
   const autores = await usuarios.find({}, { projection: { _id: 0, nome: 1, foto: 1 } }).toArray()
@@ -99,7 +170,7 @@ app.get('/posts', async (req, res) => {
     return {
       ...resto,
       foto: fotos[p.usuario] || 'https://placehold.co/100x100',
-      curtiu: (curtidoPor || []).includes(usuarioId),
+      curtiu: (curtidoPor || []).includes(req.usuario.id),
       totalComentarios: totais[p.id] || 0,
     }
   })
@@ -108,10 +179,14 @@ app.get('/posts', async (req, res) => {
 
 app.post('/posts', autenticar, bloquearModerador, async (req, res) => {
   const { posts } = await conectar()
-  const { imagem, texto } = req.body
+  const { imagem } = req.body
+  const texto = req.body.texto ?? ''
 
-  if (!imagem || imagem.trim() === '') {
+  if (!imagemValida(imagem)) {
     return res.status(400).json({ erro: 'Coloque a imagem do post.' })
+  }
+  if (!ehTexto(texto) || texto.length > 2200) {
+    return res.status(400).json({ erro: 'A legenda pode ter no máximo 2200 caracteres.' })
   }
 
   const novo = {
@@ -149,7 +224,7 @@ app.patch('/posts/:id', autenticar, bloquearModerador, async (req, res) => {
   res.json({ id, curtidas, curtiu: curtidoPor.includes(usuarioId) })
 })
 
-// apagar: o autor do post ou um admin (os comentários do post vão junto)
+// apagar: o autor do post ou um admin (os comentários e a foto vão junto)
 app.delete('/posts/:id', autenticar, async (req, res) => {
   const { posts, comentarios } = await conectar()
   const id = Number(req.params.id)
@@ -164,12 +239,13 @@ app.delete('/posts/:id', autenticar, async (req, res) => {
 
   await posts.deleteOne({ id })
   await comentarios.deleteMany({ postId: id })
+  await apagarImagem(post.imagem)
   res.status(204).end()
 })
 
 // ---------- Comentários ----------
 
-app.get('/posts/:id/comentarios', async (req, res) => {
+app.get('/posts/:id/comentarios', autenticar, async (req, res) => {
   const { usuarios, comentarios } = await conectar()
   const lista = await comentarios.find({ postId: Number(req.params.id) }, SEM_ID).sort({ id: 1 }).toArray()
 
@@ -191,7 +267,7 @@ app.get('/posts/:id/comentarios', async (req, res) => {
 app.post('/posts/:id/comentarios', autenticar, bloquearModerador, async (req, res) => {
   const { posts, comentarios } = await conectar()
   const postId = Number(req.params.id)
-  const texto = (req.body.texto || '').trim()
+  const texto = ehTexto(req.body.texto) ? req.body.texto.trim() : ''
 
   if (texto === '') {
     return res.status(400).json({ erro: 'Escreva alguma coisa no comentário.' })
@@ -232,12 +308,21 @@ app.delete('/comentarios/:id', autenticar, async (req, res) => {
 
 const UM_DIA = 24 * 60 * 60 * 1000
 
-// stories das últimas 24h, agrupados por usuário (quem postou por último vem primeiro)
-app.get('/stories', async (req, res) => {
-  const { usuarios, stories } = await conectar()
-  const desde = new Date(Date.now() - UM_DIA)
+// stories com mais de 24h são apagados (junto com a foto no Blob)
+async function limparStoriesVencidos(stories) {
+  const limite = new Date(Date.now() - UM_DIA)
+  const vencidos = await stories.find({ criadoEm: { $lt: limite } }, SEM_ID).toArray()
+  if (vencidos.length === 0) return
+  await stories.deleteMany({ id: { $in: vencidos.map((s) => s.id) } })
+  await Promise.all(vencidos.map((s) => apagarImagem(s.imagem)))
+}
 
-  const lista = await stories.find({ criadoEm: { $gte: desde } }, SEM_ID).sort({ criadoEm: 1 }).toArray()
+// stories das últimas 24h, agrupados por usuário (quem postou por último vem primeiro)
+app.get('/stories', autenticar, async (req, res) => {
+  const { usuarios, stories } = await conectar()
+  await limparStoriesVencidos(stories)
+
+  const lista = await stories.find({}, SEM_ID).sort({ criadoEm: 1 }).toArray()
   const ids = [...new Set(lista.map((s) => s.usuarioId))]
   const autores = await usuarios.find({ id: { $in: ids } }, SEM_ID).toArray()
 
@@ -256,7 +341,7 @@ app.post('/stories', autenticar, bloquearModerador, async (req, res) => {
   const { stories } = await conectar()
   const { imagem } = req.body
 
-  if (!imagem || imagem.trim() === '') {
+  if (!imagemValida(imagem)) {
     return res.status(400).json({ erro: 'Escolha uma foto para o story.' })
   }
 
@@ -279,6 +364,7 @@ app.delete('/stories/:id', autenticar, async (req, res) => {
   }
 
   await stories.deleteOne({ id })
+  await apagarImagem(story.imagem)
   res.status(204).end()
 })
 
@@ -287,6 +373,11 @@ app.delete('/stories/:id', autenticar, async (req, res) => {
 app.post('/login', async (req, res) => {
   const { usuarios } = await conectar()
   const { email, senha } = req.body
+
+  if (!ehTexto(email) || !ehTexto(senha)) {
+    return res.status(400).json({ erro: 'Preencha email e senha.' })
+  }
+
   const usuario = await usuarios.findOne({ email, senha }, SEM_ID)
 
   if (!usuario) {
@@ -302,12 +393,12 @@ app.post('/logout', autenticar, async (req, res) => {
   res.status(204).end()
 })
 
-app.get('/usuarios/:nome', async (req, res) => {
+app.get('/usuarios/:nome', autenticar, async (req, res) => {
   const { usuarios } = await conectar()
   const usuario = await usuarios.findOne({ nome: req.params.nome }, SEM_ID)
 
   // o perfil da conta de moderação só aparece para ela mesma
-  const escondido = usuario?.admin && (await quemEsta(req))?.id !== usuario.id
+  const escondido = usuario?.admin && req.usuario.id !== usuario.id
 
   if (!usuario || escondido) {
     return res.status(404).json({ erro: 'Usuário não encontrado.' })
@@ -329,6 +420,12 @@ app.patch('/usuarios/:id', autenticar, async (req, res) => {
   const { nome, bio, foto, capa } = req.body
   const mudancas = {}
 
+  for (const campo of [nome, bio, foto, capa]) {
+    if (campo !== undefined && !ehTexto(campo)) {
+      return res.status(400).json({ erro: 'Dados inválidos.' })
+    }
+  }
+
   if (nome !== undefined) {
     if (nome.trim() === '') {
       return res.status(400).json({ erro: 'O nome de usuário não pode ficar vazio.' })
@@ -342,11 +439,24 @@ app.patch('/usuarios/:id', autenticar, async (req, res) => {
     mudancas.nome = nome.trim()
   }
 
-  if (bio !== undefined) mudancas.bio = bio
-  if (foto !== undefined) mudancas.foto = foto
-  if (capa !== undefined) mudancas.capa = capa
+  if (bio !== undefined) mudancas.bio = bio.slice(0, 300)
+
+  // foto e capa: só aceita link do nosso Blob (a capa também pode ser removida com "")
+  if (foto !== undefined && foto !== usuario.foto) {
+    if (!imagemValida(foto)) return res.status(400).json({ erro: 'Foto de perfil inválida.' })
+    mudancas.foto = foto
+  }
+  if (capa !== undefined && capa !== (usuario.capa ?? '')) {
+    if (capa !== '' && !imagemValida(capa)) return res.status(400).json({ erro: 'Foto de capa inválida.' })
+    mudancas.capa = capa
+  }
 
   await usuarios.updateOne({ id }, { $set: mudancas })
+
+  // apaga do Blob as fotos antigas que foram trocadas
+  if (mudancas.foto !== undefined) await apagarImagem(usuario.foto)
+  if (mudancas.capa !== undefined) await apagarImagem(usuario.capa)
+
   const atualizado = await usuarios.findOne({ id }, SEM_ID)
   res.json(publico(atualizado))
 })
@@ -362,10 +472,10 @@ app.patch('/conta/senha', autenticar, async (req, res) => {
   const { usuarios, sessoes } = await conectar()
   const { senhaAtual, novaSenha } = req.body
 
-  if (senhaAtual !== req.usuario.senha) {
+  if (!ehTexto(senhaAtual) || senhaAtual !== req.usuario.senha) {
     return res.status(400).json({ erro: 'A senha atual está errada.' })
   }
-  if (!novaSenha || novaSenha.length < 6) {
+  if (!ehTexto(novaSenha) || novaSenha.length < 6) {
     return res.status(400).json({ erro: 'A nova senha precisa ter pelo menos 6 caracteres.' })
   }
   if (novaSenha === senhaAtual) {
@@ -382,8 +492,11 @@ app.post('/cadastro', async (req, res) => {
   const { usuarios } = await conectar()
   const { nome, email, senha } = req.body
 
-  if (!nome || nome.trim() === '' || !email || email.trim() === '' || !senha) {
+  if (!ehTexto(nome) || !ehTexto(email) || !ehTexto(senha) || nome.trim() === '' || email.trim() === '') {
     return res.status(400).json({ erro: 'Preencha todos os campos.' })
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return res.status(400).json({ erro: 'Digite um email válido.' })
   }
   if (senha.length < 6) {
     return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres.' })
@@ -405,6 +518,12 @@ app.post('/cadastro', async (req, res) => {
 
 // erros viram uma resposta em JSON (em vez de derrubar o servidor)
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ erro: 'Arquivo grande demais.' })
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ erro: 'Dados inválidos.' })
+  }
   console.error(err)
   res.status(500).json({ erro: 'Erro no servidor. Confira a conexão com o banco.' })
 })

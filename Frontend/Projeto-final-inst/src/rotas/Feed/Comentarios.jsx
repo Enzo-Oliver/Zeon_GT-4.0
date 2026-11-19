@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Lixeira } from '../../Icones'
 import { tempoRelativo } from '../../tempo'
-import { URL_API, api } from '../../api'
+import { api } from '../../api'
 
 const LIMITE = 500
 
@@ -14,11 +14,11 @@ function Comentarios({ post, logado, aoMudarTotal }) {
   const [erro, setErro] = useState('')
 
   useEffect(() => {
-    fetch(`${URL_API}/posts/${post.id}/comentarios`)
-      .then((r) => r.json())
-      .then((dados) => {
-        setLista(dados)
-        aoMudarTotal(dados.length)
+    api(`/posts/${post.id}/comentarios`)
+      .then((r) => {
+        if (!r.ok) throw new Error()
+        setLista(r.dados)
+        aoMudarTotal(r.dados.length)
       })
       .catch(() => setErro('Não consegui carregar os comentários.'))
   }, [post.id, aoMudarTotal])

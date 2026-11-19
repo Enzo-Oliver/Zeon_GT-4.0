@@ -43,9 +43,10 @@ export function conectar() {
         await usuarios.insertMany(usuariosPadrao.map((u) => ({ ...u })))
         await posts.insertMany(postsPadrao.map((p) => ({ ...p })))
       }
-      // stories somem sozinhos 24h depois de criados (o MongoDB apaga)
+      // stories vencidos (24h) agora são apagados pelo servidor, junto com a foto no Blob.
+      // Remove o índice antigo que apagava sozinho (e deixava a foto esquecida no Blob).
       const stories = db.collection('stories')
-      await stories.createIndex({ criadoEm: 1 }, { expireAfterSeconds: 60 * 60 * 24 })
+      await stories.dropIndex('criadoEm_1').catch(() => {})
 
       // login: cada sessão vale 30 dias
       const sessoes = db.collection('sessoes')

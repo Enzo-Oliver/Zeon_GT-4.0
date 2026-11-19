@@ -5,7 +5,7 @@ import Cabecalho from "./Cabecalho"
 import Informacaes from "./Informacaes"
 import Galeria from "./Galeria"
 
-import { URL_API, usuarioLogado } from '../../api'
+import { api } from '../../api'
 
 // /perfil mostra o seu perfil; /perfil/:nome mostra o perfil de outra pessoa
 function Perfil() {
@@ -23,23 +23,14 @@ function ConteudoPerfil({ nome }) {
   const [naoExiste, setNaoExiste] = useState(false)
 
   useEffect(() => {
-    // manda o token: o perfil da conta de moderação só abre para ela mesma
-    const token = usuarioLogado()?.token
-    fetch(`${URL_API}/usuarios/${encodeURIComponent(nome)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    api(`/usuarios/${encodeURIComponent(nome)}`).then((r) => {
+      if (r.status === 404) setNaoExiste(true)
+      else if (r.ok) setUsuario(r.dados)
     })
-      .then((r) => {
-        if (r.status === 404) {
-          setNaoExiste(true)
-          return null
-        }
-        return r.json()
-      })
-      .then((dados) => dados && setUsuario(dados))
 
-    fetch(`${URL_API}/posts`)
-      .then((r) => r.json())
-      .then((todos) => setPosts(todos.filter((p) => p.usuario === nome)))
+    api('/posts').then((r) => {
+      if (r.ok) setPosts(r.dados.filter((p) => p.usuario === nome))
+    })
   }, [nome])
 
   if (naoExiste) {

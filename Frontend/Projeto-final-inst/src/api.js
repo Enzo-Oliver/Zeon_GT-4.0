@@ -30,3 +30,20 @@ export async function api(caminho, { metodo = 'GET', corpo } = {}) {
   const dados = resposta.status === 204 ? null : await resposta.json().catch(() => null)
   return { ok: resposta.ok, status: resposta.status, dados }
 }
+
+// Manda uma foto (a prévia em base64 que o reduzirImagem gera) para o servidor,
+// que guarda no Vercel Blob e devolve o link. Só o link vai para o banco.
+export async function enviarImagem(dataUrl) {
+  const arquivo = await (await fetch(dataUrl)).blob()
+  const logado = usuarioLogado()
+
+  const resposta = await fetch(`${URL_API}/imagens`, {
+    method: 'POST',
+    headers: { 'Content-Type': arquivo.type, Authorization: `Bearer ${logado?.token}` },
+    body: arquivo,
+  })
+  const dados = await resposta.json().catch(() => null)
+
+  if (!resposta.ok) throw new Error(dados?.erro || 'Não consegui enviar a foto.')
+  return dados.url
+}

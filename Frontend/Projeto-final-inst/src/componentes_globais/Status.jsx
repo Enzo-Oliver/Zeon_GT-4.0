@@ -3,7 +3,7 @@ import { reduzirImagem } from '../imagem'
 import { Adicionar } from '../Icones'
 import StoryViewer from './StoryViewer'
 
-import { URL_API, api } from '../api'
+import { api, enviarImagem } from '../api'
 
 function lerVistos() {
   try {
@@ -24,17 +24,16 @@ function Status() {
 
   async function carregar() {
     try {
-      const resposta = await fetch(`${URL_API}/stories`)
-      setGrupos(await resposta.json())
+      const resposta = await api('/stories')
+      if (resposta.ok) setGrupos(resposta.dados)
     } catch {
       setErro('Não consegui carregar os stories.')
     }
   }
 
   useEffect(() => {
-    fetch(`${URL_API}/stories`)
-      .then((r) => r.json())
-      .then((dados) => setGrupos(dados))
+    api('/stories')
+      .then((r) => r.ok && setGrupos(r.dados))
       .catch(() => setErro('Não consegui carregar os stories.'))
   }, [])
 
@@ -55,7 +54,8 @@ function Status() {
     setEnviando(true)
     setErro('')
     try {
-      const imagem = await reduzirImagem(arquivo, 1080)
+      // reduz a foto no navegador, manda para o Blob e guarda só o link
+      const imagem = await enviarImagem(await reduzirImagem(arquivo, 1080))
       const resposta = await api('/stories', { metodo: 'POST', corpo: { imagem } })
       if (!resposta.ok) {
         setErro(resposta.dados?.erro || 'Não consegui publicar o story.')

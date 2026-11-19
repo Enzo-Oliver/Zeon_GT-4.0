@@ -5,7 +5,7 @@ import GradientWaves from "./../../componentes_globais/GradientWaves"
 import Posts from "./Posts"
 import NovoPost from "./NovoPost"
 
-const URL_API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { api } from '../../api'
 
 function Feed() {
   const [posts, setPosts] = useState([])
@@ -13,12 +13,10 @@ function Feed() {
 
   async function carregarPosts() {
     try {
-      // manda o id de quem está vendo para saber quais posts já foram curtidos
-      const logado = JSON.parse(localStorage.getItem('usuario'))
-      const consulta = logado ? `?usuarioId=${logado.id}` : ''
-      const resposta = await fetch(`${URL_API}/posts${consulta}`)
-      const dados = await resposta.json()
-      setPosts(dados)
+      // o token diz ao servidor quem está vendo (para saber quais posts já foram curtidos)
+      const resposta = await api('/posts')
+      if (!resposta.ok) return
+      setPosts(resposta.dados)
       setErro('')
     } catch {
       setErro('Não consegui falar com o servidor. Ele está ligado?')

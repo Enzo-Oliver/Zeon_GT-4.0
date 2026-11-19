@@ -4,7 +4,7 @@ import { reduzirImagem } from '../../imagem'
 import { Camera } from '../../Icones'
 import Conta from './Conta'
 
-import { api } from '../../api'
+import { api, enviarImagem } from '../../api'
 
 function Formulario() {
   const logado = JSON.parse(localStorage.getItem('usuario'))
@@ -67,9 +67,13 @@ function Formulario() {
     setMensagem('')
 
     try {
+      // fotos novas (ainda em base64 na prévia) vão primeiro para o Blob
+      const fotoFinal = foto.startsWith('data:') ? await enviarImagem(foto) : foto
+      const capaFinal = capa.startsWith('data:') ? await enviarImagem(capa) : capa
+
       const resposta = await api(`/usuarios/${logado.id}`, {
         metodo: 'PATCH',
-        corpo: { nome: nome, bio: bio, foto: foto, capa: capa },
+        corpo: { nome: nome, bio: bio, foto: fotoFinal, capa: capaFinal },
       })
       const dados = resposta.dados
 
@@ -82,8 +86,8 @@ function Formulario() {
       localStorage.setItem('usuario', JSON.stringify({ ...dados, token: logado.token }))
       setMensagem('Alterações salvas!')
       setTimeout(() => navegar('/perfil'), 700)
-    } catch {
-      setErro('Não consegui falar com o servidor. Ele está ligado?')
+    } catch (err) {
+      setErro(err.message || 'Não consegui falar com o servidor. Ele está ligado?')
     }
   }
 

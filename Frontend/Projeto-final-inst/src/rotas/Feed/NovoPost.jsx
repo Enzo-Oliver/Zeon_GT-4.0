@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { reduzirImagem } from '../../imagem'
 import { Imagem, Fechar } from '../../Icones'
 
-import { api } from '../../api'
+import { api, enviarImagem } from '../../api'
 
 function NovoPost({ aoPostar }) {
   const logado = JSON.parse(localStorage.getItem('usuario'))
@@ -51,7 +51,9 @@ function NovoPost({ aoPostar }) {
 
     setEnviando(true)
     try {
-      const resposta = await api('/posts', { metodo: 'POST', corpo: { imagem: imagem, texto: texto } })
+      // primeiro a foto vai para o Blob; o post guarda só o link dela
+      const url = await enviarImagem(imagem)
+      const resposta = await api('/posts', { metodo: 'POST', corpo: { imagem: url, texto: texto } })
       const dados = resposta.dados
 
       if (!resposta.ok) {
@@ -63,8 +65,8 @@ function NovoPost({ aoPostar }) {
       setTexto('')
       setErro('')
       aoPostar()
-    } catch {
-      setErro('Não consegui falar com o servidor. Ele está ligado?')
+    } catch (err) {
+      setErro(err.message || 'Não consegui falar com o servidor. Ele está ligado?')
     } finally {
       setEnviando(false)
     }
