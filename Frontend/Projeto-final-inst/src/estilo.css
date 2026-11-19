@@ -834,18 +834,21 @@ textarea.input { resize: none; }
 /* ---------- Celular ---------- */
 @media (max-width: 900px) {
   .auth { grid-template-columns: 1fr; }
+  /* no celular: a espiral de fotos em uma faixa no topo, com o polvo no canto */
   .auth-marca {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-    padding: 24px 20px;
+    height: 320px;
     border-right: 0;
     border-bottom: 1px solid var(--borda);
   }
-  .auth-marca-spiral { display: none; }
-  .auth-marca-icone { display: block; width: 84px; }
-  .auth-marca-logo { position: static; width: 64px; }
+  .auth-marca-icone {
+    display: block;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 2;
+    width: 64px;
+  }
+  .auth-marca-logo { display: none; }
   .auth-lado { padding: 28px 20px; align-items: flex-start; }
 
   .topbar { padding: 10px 10px 0; }

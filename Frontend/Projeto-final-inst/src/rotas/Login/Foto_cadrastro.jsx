@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react"
 import InfiniteSpiral from "../../componentes_globais/InfiniteSpiral"
 import logo from "../../assets/zeon-app.png"
 import icone from "../../assets/zeon-icone.png"
@@ -22,19 +23,36 @@ const imagens = [
   { src: card8, alt: "Zeon 8" },
 ]
 
+const CELULAR = '(max-width: 900px)'
+
+// no celular a espiral fica numa faixa menor, então os cartões encolhem
+function useCelular() {
+  const [celular, setCelular] = useState(() => window.matchMedia(CELULAR).matches)
+  useEffect(() => {
+    const consulta = window.matchMedia(CELULAR)
+    const mudar = () => setCelular(consulta.matches)
+    consulta.addEventListener('change', mudar)
+    return () => consulta.removeEventListener('change', mudar)
+  }, [])
+  return celular
+}
+
 // Lado esquerdo da tela de login/cadastro
 function Foto_cadrastro() {
+  const celular = useCelular()
+
   return (
     <div className="auth-marca">
       <div className="auth-marca-spiral">
         <InfiniteSpiral
+          key={celular ? 'celular' : 'computador'}
           items={imagens}
           animationMode="all"
           speed={0.55}
-          radius={190}
-          cardWidth={130}
-          cardHeight={130}
-          verticalSpacing={70}
+          radius={celular ? 120 : 190}
+          cardWidth={celular ? 84 : 130}
+          cardHeight={celular ? 84 : 130}
+          verticalSpacing={celular ? 44 : 70}
           perspective={1000}
           cardRadius={14}
           centerScale={1.2}
