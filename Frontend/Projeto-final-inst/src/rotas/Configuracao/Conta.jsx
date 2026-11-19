@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api } from '../../api'
+import { api, usuarioLogado } from '../../api'
 import { Olho, OlhoFechado } from '../../Icones'
 
 // campo de senha com o "olhinho" para mostrar o que está digitando
@@ -122,7 +122,70 @@ function Conta() {
       )}
 
       {mensagem && <p className="sucesso">{mensagem}</p>}
+
+      {!usuarioLogado()?.admin && <ApagarConta />}
     </section>
+  )
+}
+
+// Apagar a conta: pede a senha para confirmar e some com tudo da pessoa
+function ApagarConta() {
+  const [aberto, setAberto] = useState(false)
+  const [senha, setSenha] = useState('')
+  const [erro, setErro] = useState('')
+  const [apagando, setApagando] = useState(false)
+
+  function fechar() {
+    setAberto(false)
+    setSenha('')
+    setErro('')
+  }
+
+  async function apagar(e) {
+    e.preventDefault()
+    if (senha === '') {
+      setErro('Digite sua senha para confirmar.')
+      return
+    }
+
+    setApagando(true)
+    const resposta = await api('/conta', { metodo: 'DELETE', corpo: { senha } })
+    setApagando(false)
+
+    if (!resposta.ok) {
+      setErro(resposta.dados?.erro || 'Não consegui apagar a conta.')
+      return
+    }
+    localStorage.removeItem('usuario')
+    window.location.hash = '#/login'
+  }
+
+  return (
+    <div className="cfg-perigo">
+      <h3>Apagar conta</h3>
+      <p className="cfg-dica">
+        Seus posts, stories, comentários e fotos são apagados para sempre. Não dá para desfazer.
+      </p>
+
+      {!aberto ? (
+        <button type="button" className="btn btn-perigo" onClick={() => setAberto(true)}>
+          Apagar minha conta
+        </button>
+      ) : (
+        <form onSubmit={apagar}>
+          <CampoSenha id="senhaApagar" rotulo="Digite sua senha para confirmar" valor={senha} aoMudar={setSenha} autoComplete="current-password" />
+          {erro && <p className="erro">{erro}</p>}
+          <div className="cfg-acoes">
+            <button type="button" className="btn btn-fantasma" onClick={fechar}>
+              Cancelar
+            </button>
+            <button type="submit" className="btn btn-perigo" disabled={apagando}>
+              {apagando ? 'Apagando...' : 'Apagar para sempre'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   )
 }
 

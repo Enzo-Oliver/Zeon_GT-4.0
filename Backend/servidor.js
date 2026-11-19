@@ -370,6 +370,53 @@ app.delete('/stories/:id', autenticar, async (req, res) => {
 
 // ---------- Usuários ----------
 
+// Troca o nome de usuário (usado pela própria pessoa e pelo moderador).
+// Os posts guardam o nome do autor, então eles mudam junto.
+// Devolve um erro { status, erro } ou null se deu certo.
+async function trocarNome(usuario, nome) {
+  const { usuarios, posts } = await conectar()
+  const novo = ehTexto(nome) ? nome.trim() : ''
+
+  if (novo === '') return { status: 400, erro: 'O nome de usuário não pode ficar vazio.' }
+  if (novo.length > 30) return { status: 400, erro: 'O nome de usuário pode ter no máximo 30 caracteres.' }
+  if (await usuarios.findOne({ nome: novo, id: { $ne: usuario.id } })) {
+    return { status: 409, erro: 'Esse nome de usuário já está em uso.' }
+  }
+
+  await usuarios.updateOne({ id: usuario.id }, { $set: { nome: novo } })
+  await posts.updateMany({ usuario: usuario.nome }, { $set: { usuario: novo } })
+  return null
+}
+
+// Apaga a conta e tudo o que é dela: posts (com os comentários deles), stories,
+// comentários, curtidas, sessões e as fotos guardadas no Blob.
+async function apagarUsuario(usuario) {
+  const { usuarios, posts, stories, sessoes, comentarios } = await conectar()
+
+  const seusPosts = await posts.find({ usuario: usuario.nome }, SEM_ID).toArray()
+  const seusStories = await stories.find({ usuarioId: usuario.id }, SEM_ID).toArray()
+
+  await comentarios.deleteMany({ postId: { $in: seusPosts.map((p) => p.id) } })
+  await comentarios.deleteMany({ usuarioId: usuario.id })
+  await posts.deleteMany({ usuario: usuario.nome })
+  await stories.deleteMany({ usuarioId: usuario.id })
+  // tira as curtidas que a pessoa deu nos posts dos outros
+  await posts.updateMany({ curtidoPor: usuario.id }, { $pull: { curtidoPor: usuario.id }, $inc: { curtidas: -1 } })
+  await sessoes.deleteMany({ usuarioId: usuario.id })
+  await usuarios.deleteOne({ id: usuario.id })
+
+  const fotos = [usuario.foto, usuario.capa, ...seusPosts.map((p) => p.imagem), ...seusStories.map((s) => s.imagem)]
+  await Promise.all(fotos.map(apagarImagem))
+}
+
+// só o moderador passa daqui
+function somenteModerador(req, res, next) {
+  if (!req.usuario.admin) {
+    return res.status(403).json({ erro: 'Só a moderação pode fazer isso.' })
+  }
+  next()
+}
+
 app.post('/login', async (req, res) => {
   const { usuarios } = await conectar()
   const { email, senha } = req.body
@@ -409,7 +456,7 @@ app.get('/usuarios/:nome', autenticar, async (req, res) => {
 
 // configurações: nome, bio, foto e capa (cada um só edita o próprio perfil)
 app.patch('/usuarios/:id', autenticar, async (req, res) => {
-  const { usuarios, posts } = await conectar()
+  const { usuarios } = await conectar()
   const id = Number(req.params.id)
 
   if (id !== req.usuario.id) {
@@ -426,16 +473,9 @@ app.patch('/usuarios/:id', autenticar, async (req, res) => {
     }
   }
 
-  if (nome !== undefined) {
-    if (nome.trim() === '') {
-      return res.status(400).json({ erro: 'O nome de usuário não pode ficar vazio.' })
-    }
-    const existe = await usuarios.findOne({ nome: nome.trim(), id: { $ne: id } })
-    if (existe) {
-      return res.status(409).json({ erro: 'Esse nome de usuário já está em uso.' })
-    }
-    // os posts antigos passam a mostrar o nome novo
-    await posts.updateMany({ usuario: usuario.nome }, { $set: { usuario: nome.trim() } })
+  if (nome !== undefined && nome.trim() !== usuario.nome) {
+    const problema = await trocarNome(usuario, nome)
+    if (problema) return res.status(problema.status).json({ erro: problema.erro })
     mudancas.nome = nome.trim()
   }
 
@@ -488,6 +528,55 @@ app.patch('/conta/senha', autenticar, async (req, res) => {
   res.json({ ok: true })
 })
 
+// apagar a própria conta: precisa confirmar a senha
+app.delete('/conta', autenticar, async (req, res) => {
+  const { senha } = req.body ?? {}
+
+  if (req.usuario.admin) {
+    return res.status(403).json({ erro: 'A conta de moderação não pode ser apagada pelo site.' })
+  }
+  if (!ehTexto(senha) || senha !== req.usuario.senha) {
+    return res.status(400).json({ erro: 'Senha errada.' })
+  }
+
+  await apagarUsuario(req.usuario)
+  res.status(204).end()
+})
+
+// ---------- Moderação ----------
+
+// busca o usuário alvo (a conta de moderação não pode ser alvo)
+async function alvoDaModeracao(req, res) {
+  const { usuarios } = await conectar()
+  const usuario = await usuarios.findOne({ id: Number(req.params.id) }, SEM_ID)
+  if (!usuario || usuario.admin) {
+    res.status(404).json({ erro: 'Usuário não encontrado.' })
+    return null
+  }
+  return usuario
+}
+
+// moderador troca o nome de outra pessoa (ex.: nome ofensivo)
+app.patch('/moderacao/usuarios/:id', autenticar, somenteModerador, async (req, res) => {
+  const usuario = await alvoDaModeracao(req, res)
+  if (!usuario) return
+
+  const problema = await trocarNome(usuario, req.body.nome)
+  if (problema) return res.status(problema.status).json({ erro: problema.erro })
+
+  const { usuarios } = await conectar()
+  res.json(publico(await usuarios.findOne({ id: usuario.id }, SEM_ID)))
+})
+
+// moderador apaga a conta de outra pessoa
+app.delete('/moderacao/usuarios/:id', autenticar, somenteModerador, async (req, res) => {
+  const usuario = await alvoDaModeracao(req, res)
+  if (!usuario) return
+
+  await apagarUsuario(usuario)
+  res.status(204).end()
+})
+
 app.post('/cadastro', async (req, res) => {
   const { usuarios } = await conectar()
   const { nome, email, senha } = req.body
@@ -500,6 +589,9 @@ app.post('/cadastro', async (req, res) => {
   }
   if (senha.length < 6) {
     return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres.' })
+  }
+  if (nome.trim().length > 30) {
+    return res.status(400).json({ erro: 'O nome de usuário pode ter no máximo 30 caracteres.' })
   }
   if (await usuarios.findOne({ nome: nome.trim() })) {
     return res.status(409).json({ erro: 'Esse nome de usuário já está em uso.' })

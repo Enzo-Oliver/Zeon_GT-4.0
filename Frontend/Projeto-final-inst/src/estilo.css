@@ -89,6 +89,13 @@ img { max-width: 100%; }
 }
 .btn-fantasma:hover { background: var(--superficie-2); color: var(--texto); }
 .btn-bloco { width: 100%; padding: 12px 22px; }
+.btn-perigo {
+  background: transparent;
+  border-color: var(--perigo);
+  color: var(--perigo);
+}
+.btn-perigo:hover { background: var(--perigo); color: #fff; }
+.btn-perigo:disabled { opacity: 0.55; cursor: wait; }
 
 .icone-btn {
   display: inline-flex;
@@ -568,6 +575,10 @@ textarea.input { resize: none; }
   font-size: 0.9rem;
 }
 .moderacao-aviso b { color: var(--perigo); }
+.moderacao-nome { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.moderacao-nome .input { width: 240px; max-width: 100%; }
+.moderacao-botoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.moderacao-nome .erro { margin: 0; }
 .moderacao-aviso span { color: var(--texto-suave); }
 
 /* ---------- Comentários ---------- */
@@ -813,6 +824,9 @@ textarea.input { resize: none; }
 .cfg-senha-linha { display: flex; gap: 10px; }
 .cfg-senha-linha .input { flex: 1; min-width: 0; }
 .cfg-senha-linha .btn { flex-shrink: 0; }
+.cfg-perigo { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--borda-forte); }
+.cfg-perigo h3 { font-size: 1rem; font-weight: 700; color: var(--perigo); margin-bottom: 4px; }
+.cfg-perigo .cfg-dica { display: block; margin-bottom: 14px; }
 
 /* ---------- Celular ---------- */
 @media (max-width: 900px) {
