@@ -456,6 +456,9 @@ textarea.input { resize: none; }
   border-radius: 50%;
 }
 .story-topo span { color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; }
+.story-autor { display: flex; align-items: center; gap: 8px; color: #fff; text-decoration: none; min-width: 0; }
+.story-autor:hover { color: #fff; text-decoration: none; }
+.story-autor:hover b { text-decoration: underline; }
 .story-acoes { display: flex; gap: 2px; margin-left: auto; }
 .story-acoes .icone-btn { color: #fff; }
 .story-toque {

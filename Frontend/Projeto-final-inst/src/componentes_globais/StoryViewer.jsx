@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { Fechar, Lixeira } from '../Icones'
 import { tempoRelativo } from '../tempo'
 
@@ -110,8 +111,15 @@ function StoryViewer({ grupos, inicio, vistos, logadoId, ehAdmin, aoVer, aoApaga
         </div>
 
         <div className="story-topo">
-          <img src={grupo.foto} alt={grupo.usuario} />
-          <b>{meu ? 'Você' : grupo.usuario}</b>
+          {/* foto e nome levam para o perfil de quem postou */}
+          <Link
+            to={meu ? '/perfil' : `/perfil/${encodeURIComponent(grupo.usuario)}`}
+            className="story-autor"
+            onClick={aoFechar}
+          >
+            <img src={grupo.foto} alt={grupo.usuario} />
+            <b>{meu ? 'Você' : grupo.usuario}</b>
+          </Link>
           <span>{tempoRelativo(story.criadoEm)}</span>
           <div className="story-acoes">
             {(meu || ehAdmin) && (
