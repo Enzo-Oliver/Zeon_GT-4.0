@@ -6,8 +6,10 @@ import Posts from "./Posts"
 import NovoPost from "./NovoPost"
 
 import { api } from '../../api'
+import { useCelular } from '../../useCelular'
 
 function Feed() {
+  const celular = useCelular()
   const [posts, setPosts] = useState([])
   const [erro, setErro] = useState('')
 
@@ -39,7 +41,9 @@ function Feed() {
           amplitude={2.5}
           relief={1}
           lightAngle={120}
-          opacity={0.8}
+          // no celular os posts ocupam a tela toda, então o fundo fica mais forte
+          brightness={celular ? 1.35 : 1}
+          opacity={celular ? 1 : 0.8}
           quality="low"
           dpr={1}
           mouseInteraction
